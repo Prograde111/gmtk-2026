@@ -92,6 +92,8 @@ fn load_timer_layer(bytes: &[u8], layer: &'static str) -> Result<MapLayer, eyre:
             100 => 1, // signal extension
             150 => 2, // periodic after activation
             255 => 3, // global periodic
+            60 => 4, // after turn
+            0 => 5, // until turn
             _ => 0
         };
         let length = pixel.0[0] as u32;

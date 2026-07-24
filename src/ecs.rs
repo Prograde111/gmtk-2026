@@ -139,6 +139,16 @@ pub struct SignalExtensionTimer {
     pub turn_tick: u32,
     pub is_triggered: bool,
 }
+#[derive(Component, Clone, Debug, Default)]
+pub struct UntilTurnTimer {
+    pub trigger_turn: u32,
+    pub turn_tick: u32,
+}
+#[derive(Component, Clone, Debug, Default)]
+pub struct AfterTurnTimer {
+    pub trigger_turn: u32,
+    pub turn_tick: u32,
+}
 
 #[derive(Component, Clone, Debug)]
 pub struct Moving {

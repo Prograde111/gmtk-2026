@@ -8,6 +8,7 @@ pub mod gate;
 pub mod global_periodic_timer;
 pub mod activated_periodic_timer;
 pub mod signal_extension_timer;
+pub mod on_turn_timer;
 
 use std::collections::HashSet;
 use crate::ecs::{CompletedTurn, DebugMode, ObstructedSet, SignalLayers, SignalSystems, TurnCounter};
@@ -19,6 +20,7 @@ use bevy::prelude::*;
 use crate::activated_periodic_timer::activated_periodic_timer_plugin;
 use crate::gate::gate_plugin;
 use crate::global_periodic_timer::global_periodic_timer_plugin;
+use crate::on_turn_timer::on_turn_timer_plugin;
 use crate::pressure_plate::pressure_plate_plugin;
 use crate::signal_extension_timer::signal_extension_timer_plugin;
 
@@ -54,6 +56,7 @@ fn main() {
         .add_plugins(global_periodic_timer_plugin)
         .add_plugins(activated_periodic_timer_plugin)
         .add_plugins(signal_extension_timer_plugin)
+        .add_plugins(on_turn_timer_plugin)
         .add_systems(Update, clear_signal_layers.in_set(SignalSystems::Clear).after(movement::do_movement))
         .configure_sets(Update, (SignalSystems::Clear, SignalSystems::Write, SignalSystems::Timer, SignalSystems::Read).chain())
         .run();

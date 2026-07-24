@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::ecs::{ActivatedPeriodicTimer, Arrow, AvailableActions, CameraRig, Direction, Gate, GlobalPeriodicTimer, GridLocation, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess, SignalExtensionTimer};
+use crate::ecs::{ActivatedPeriodicTimer, AfterTurnTimer, Arrow, AvailableActions, CameraRig, Direction, Gate, GlobalPeriodicTimer, GridLocation, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess, SignalExtensionTimer, UntilTurnTimer};
 use crate::ui::ui;
 use crate::{GRID_SIZE, map_loader::WorldMap};
 use bevy::camera::ScalingMode;
@@ -123,14 +123,7 @@ fn generate_map(
                     PressurePlate
                     SignalAccess( { this_signal as usize } )
                 });
-                /*special_tile_set.0.insert(uvec3(i as u32, 0, j as u32),
-                                          (SpecialTileType::PressurePlate, entity.id()));*/
             }
-            /*bsn! {
-                Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
-                MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(255, 255, 255)))
-                Transform::from_xyz(0.0, -5.0, 0.0)
-            }*/
         }
     }
     let mut already_processed = HashSet::new();
@@ -245,6 +238,18 @@ fn generate_map(
                 commands.spawn_scene(bsn! {
                     Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
                     GlobalPeriodicTimer { period: length, turn_tick: length }
+                    SignalAccess({ this_signal as usize })
+                });
+            } else if timer_type == 4 {
+                commands.spawn_scene(bsn! {
+                    Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
+                    AfterTurnTimer { trigger_turn: length, turn_tick: 0 }
+                    SignalAccess({ this_signal as usize })
+                });
+            } else if timer_type == 5 {
+                commands.spawn_scene(bsn! {
+                    Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
+                    UntilTurnTimer { trigger_turn: length, turn_tick: 0 }
                     SignalAccess({ this_signal as usize })
                 });
             }

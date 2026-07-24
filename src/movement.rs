@@ -1,5 +1,5 @@
-use crate::ecs::{Arrow, AvailableActions, CameraRig, CompletedTurn, DebugMode, Direction, GridLocation, Moving, ObstructedSet, Orientation, Player, PlayerAction, PressurePlate, PressurePlateEnterMessage, PressurePlateLeaveMessage, SpecialTileSet, TurnCounter};
-use crate::{generate_tile_enter_message_match, generate_tile_leave_message_match, generate_tile_types, ANIMATION_LENGTH, PLAYER_SIZE};
+use crate::ecs::{Arrow, AvailableActions, CameraRig, CompletedTurn, DebugMode, Direction, GridLocation, Moving, ObstructedSet, Orientation, Player, PlayerAction, PressurePlate, TurnCounter};
+use crate::{ANIMATION_LENGTH, PLAYER_SIZE};
 use bevy::prelude::*;
 use std::f32::consts::PI;
 use std::time::Instant;
@@ -7,8 +7,8 @@ use pastey::paste;
 
 pub fn movement_plugin(app: &mut App) {
     app.add_systems(Update, (toggle_actions, input))
-        .add_systems(Update, (do_movement, follow_camera).chain())
-        .add_systems(Update, detect_special_tile);
+        .add_systems(Update, (do_movement, follow_camera).chain());
+        //.add_systems(Update, detect_special_tile);
 }
 
 #[derive(Component, Clone, Debug)]
@@ -456,25 +456,20 @@ fn do_movement(
         }
     }
 }
-fn detect_special_tile(
-    mut pressure_plate_enter_message: MessageWriter<PressurePlateEnterMessage>,
-    mut pressure_plate_leave_message: MessageWriter<PressurePlateLeaveMessage>,
+/*fn detect_special_tile(
     mut completed_turn_reader: MessageReader<CompletedTurn>,
     mut special_tile_set: ResMut<SpecialTileSet>,
 ) {
     for completed_turn in completed_turn_reader.read() {
         if let Some((tile_type, entity)) = special_tile_set.0.get(&completed_turn.new_location) {
-            generate_tile_enter_message_match!(tile_type, *entity,
-                    (PressurePlate, pressure_plate_enter_message));
+
         }
         if completed_turn.new_location != completed_turn.old_location
             && let Some((tile_type, entity)) = special_tile_set.0.get(&completed_turn.old_location)
         {
-            generate_tile_leave_message_match!(tile_type, *entity,
-                    (PressurePlate, pressure_plate_leave_message));
         }
     }
-}
+}*/
 
 fn slide_to(
     transform: &mut Transform,

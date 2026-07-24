@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::ecs::{Arrow, AvailableActions, CameraRig, Direction, GridLocation, ObstructedSet, Orientation, Player, PressurePlate, SpecialTileSet, SpecialTileType};
+use crate::ecs::{Arrow, AvailableActions, CameraRig, Direction, Gate, GridLocation, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess};
 use crate::ui::ui;
 use crate::{GRID_SIZE, map_loader::WorldMap};
 use bevy::camera::ScalingMode;
@@ -60,8 +60,8 @@ fn point_light() -> impl Scene {
 
 fn player() -> impl Scene {
     bsn! {
-        Transform::from_xyz(16.0 * GRID_SIZE.x, 0.5, 16.0 * GRID_SIZE.y)
-        GridLocation(Vec3::new(16.0, 0.0, 16.0))
+        Transform::from_xyz(20.0 * GRID_SIZE.x, 0.5, 12.0 * GRID_SIZE.y)
+        GridLocation(Vec3::new(20.0, 0.0, 12.0))
         Children [
             template(|ctx| {
                 Ok(WorldAssetRoot(ctx.resource::<AssetServer>().load(
@@ -95,7 +95,7 @@ fn arrow() -> impl Scene {
 fn generate_map(
     mut commands: Commands,
     mut obstructed_set: ResMut<ObstructedSet>,
-    mut special_tile_set: ResMut<SpecialTileSet>,
+    //mut special_tile_set: ResMut<SpecialTileSet>,
     world_map: Res<WorldMap>,
 ) {
     for (i, row) in world_map.ground.iter().enumerate() {
@@ -113,14 +113,18 @@ fn generate_map(
                 });
             }
             if location == 2 {
+                // pressure plate interacts with signals, check for that
+                let this_signal = world_map.signals[i][j];
                 let entity = commands.spawn_scene(bsn! {
                     Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
                     MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(255, 100, 100)))
                     Transform::from_xyz((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
+                    GridLocation(vec3(i as f32, 0.0, j as f32))
                     PressurePlate
+                    SignalAccess( { this_signal as usize } )
                 });
-                special_tile_set.0.insert(uvec3(i as u32, 0, j as u32),
-                                          (SpecialTileType::PressurePlate, entity.id()));
+                /*special_tile_set.0.insert(uvec3(i as u32, 0, j as u32),
+                                          (SpecialTileType::PressurePlate, entity.id()));*/
             }
             /*bsn! {
                 Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
@@ -162,6 +166,38 @@ fn generate_map(
                         }
                     }
                 }
+            }
+            if location == 4 {
+                // gate
+                let this_signal = world_map.signals[i][j];
+                commands.spawn_scene(bsn! {
+                    template(|ctx| {
+                        Ok(WorldAssetRoot(ctx.resource::<AssetServer>().load(
+                            GltfAssetLabel::Scene(0).from_asset("models/gate/gate_border.gltf")
+                        )))
+                    })
+                    Transform::from_xyz((i as f32) * GRID_SIZE.x, 0.0, (j as f32) * GRID_SIZE.y)
+                });
+                commands.spawn_scene(bsn! {
+                    template(|ctx| {
+                        Ok(WorldAssetRoot(ctx.resource::<AssetServer>().load(
+                            GltfAssetLabel::Scene(0).from_asset("models/gate/gate.gltf")
+                        )))
+                    })
+                    SignalAccess( { this_signal as usize } )
+                    GridLocation(vec3(i as f32, 0.0, j as f32))
+                    Transform::from_xyz((i as f32) * GRID_SIZE.x, 0.0, (j as f32) * GRID_SIZE.y)
+                    template_value(Gate::Closed)
+                });
+                obstructed_set
+                    .0
+                    .insert(uvec3(i as u32, 0, j as u32 - 1));
+                obstructed_set
+                    .0
+                    .insert(uvec3(i as u32, 0, j as u32));
+                obstructed_set
+                    .0
+                    .insert(uvec3(i as u32, 0, j as u32 + 1));
             }
         }
     }

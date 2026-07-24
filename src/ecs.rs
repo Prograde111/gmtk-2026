@@ -1,9 +1,16 @@
-use crate::{generate_tile_types, GRID_SIZE, PLAYER_SIZE};
+use crate::{GRID_SIZE, PLAYER_SIZE};
 use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::f32::consts::PI;
 use std::time::Instant;
 use pastey::paste;
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SignalSystems {
+    Clear,
+    Write,
+    Read,
+}
 
 #[derive(Resource, Clone, Debug, Deref, DerefMut)]
 pub struct DebugMode(pub bool);
@@ -98,10 +105,21 @@ impl GridLocation {
 /// a set of locations in the grid that the player can't go in
 #[derive(Resource, Clone, Default, Debug)]
 pub struct ObstructedSet(pub HashSet<UVec3>);
+//#[derive(Resource, Clone, Default, Debug)]
+//pub struct SpecialTileSet(pub HashMap<UVec3, (SpecialTileType, Entity)>);
 #[derive(Resource, Clone, Default, Debug)]
-pub struct SpecialTileSet(pub HashMap<UVec3, (SpecialTileType, Entity)>);
+pub struct SignalLayers(pub Vec<bool>);
+#[derive(Component, Clone, Default, Debug)]
+pub struct SignalAccess(pub usize); // stores the index into the SignalLayers list
 
-generate_tile_types!(PressurePlate);
+#[derive(Component, Clone, Default, Debug)]
+pub struct PressurePlate;
+#[derive(Component, Clone, Debug, Default)]
+pub enum Gate {
+    Opened,
+    #[default]
+    Closed
+}
 
 #[derive(Component, Clone, Debug)]
 pub struct Moving {

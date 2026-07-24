@@ -12,18 +12,31 @@ pub type MapLayer = [[u32; MAP_HEIGHT]; MAP_WIDTH];
 pub struct WorldMap {
     pub ground: MapLayer,
     pub stuff: MapLayer,
+    pub stuff_orientation: MapLayer,
     pub signals: MapLayer,
 }
 
 pub fn load_world_map(signal_layers: &mut SignalLayers) -> Result<WorldMap, eyre::Error> {
+    let mut regular_color_mapping = HashMap::new();
+    regular_color_mapping.insert([255, 255, 255, 255], 1); // ground
+    regular_color_mapping.insert([255, 0, 0, 255], 2); // pressure plate
+    regular_color_mapping.insert([154, 114, 46, 255], 3); // bridge
+    regular_color_mapping.insert([0, 38, 255, 255], 4); // gate
+
+    let mut orientation_mapping = HashMap::new();
+    orientation_mapping.insert([0, 255, 255, 255], 1); // north
+    orientation_mapping.insert([255, 255, 0, 255], 2); // west
+    orientation_mapping.insert([255, 0, 255, 255], 3); // south
+    orientation_mapping.insert([0, 0, 0, 255], 4); // east
     Ok(WorldMap {
-        ground: load_layer(include_bytes!("../assets/maps/ground.png"), "ground")?,
-        stuff: load_layer(include_bytes!("../assets/maps/stuff.png"), "stuff")?,
+        ground: load_layer(include_bytes!("../assets/maps/ground.png"), "ground", regular_color_mapping.clone())?,
+        stuff: load_layer(include_bytes!("../assets/maps/stuff.png"), "stuff", regular_color_mapping)?,
+        stuff_orientation: load_layer(include_bytes!("../assets/maps/stuff_orientation.png"), "stuff_orientation", orientation_mapping)?,
         signals: load_signals_layer(include_bytes!("../assets/maps/signals.png"), "signals", signal_layers)?,
     })
 }
 
-fn load_layer(bytes: &[u8], layer: &'static str) -> Result<MapLayer, eyre::Error> {
+fn load_layer(bytes: &[u8], layer: &'static str, color_mapping: HashMap<[u8; 4], u32>) -> Result<MapLayer, eyre::Error> {
     let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?
         .into_rgba8();
 
@@ -31,7 +44,16 @@ fn load_layer(bytes: &[u8], layer: &'static str) -> Result<MapLayer, eyre::Error
 
     let mut output = [[0; MAP_HEIGHT]; MAP_WIDTH];
     for (x, y, pixel) in image.enumerate_pixels() {
-        output[x as usize][y as usize] = match pixel.0 {
+        if let Some(mapping) = color_mapping.get(&pixel.0) {
+            output[x as usize][y as usize] = *mapping;
+        } else {
+            if pixel.0[3] == 0 {
+                output[x as usize][y as usize] = 0;
+            } else {
+                return Err(eyre!("invalid pixel: {x} {y} {:?}", pixel.0))
+            }
+        }
+        /*output[x as usize][y as usize] = match pixel.0 {
             [_, _, _, 0] => 0, // void
             [255, 255, 255, 255] => 1, // ground
             [255, 0, 0, 255] => 2, // pressure plate
@@ -40,7 +62,7 @@ fn load_layer(bytes: &[u8], layer: &'static str) -> Result<MapLayer, eyre::Error
             rgba => {
                 return Err(eyre!("invalid pixel: {x} {y} {rgba:?}"))
             }
-        };
+        };*/
     }
     Ok(output)
 }

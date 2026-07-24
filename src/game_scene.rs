@@ -170,13 +170,17 @@ fn generate_map(
             if location == 4 {
                 // gate
                 let this_signal = world_map.signals[i][j];
+                let this_orientation = world_map.stuff_orientation[i][j];
                 commands.spawn_scene(bsn! {
                     template(|ctx| {
                         Ok(WorldAssetRoot(ctx.resource::<AssetServer>().load(
                             GltfAssetLabel::Scene(0).from_asset("models/gate/gate_border.gltf")
                         )))
                     })
-                    Transform::from_xyz((i as f32) * GRID_SIZE.x, 0.0, (j as f32) * GRID_SIZE.y)
+                    Transform {
+                        translation: vec3((i as f32) * GRID_SIZE.x, 0.0, (j as f32) * GRID_SIZE.y)
+                        rotation: Quat::from_rotation_y(this_orientation as f32 * PI/2.0),
+                    }
                 });
                 commands.spawn_scene(bsn! {
                     template(|ctx| {
@@ -186,18 +190,36 @@ fn generate_map(
                     })
                     SignalAccess( { this_signal as usize } )
                     GridLocation(vec3(i as f32, 0.0, j as f32))
-                    Transform::from_xyz((i as f32) * GRID_SIZE.x, 0.0, (j as f32) * GRID_SIZE.y)
+                    Transform {
+                        translation: vec3((i as f32) * GRID_SIZE.x, 0.0, (j as f32) * GRID_SIZE.y)
+                        rotation: Quat::from_rotation_y(this_orientation as f32 * PI/2.0),
+                    }
                     template_value(Gate::Closed)
                 });
-                obstructed_set
-                    .0
-                    .insert(uvec3(i as u32, 0, j as u32 - 1));
-                obstructed_set
-                    .0
-                    .insert(uvec3(i as u32, 0, j as u32));
-                obstructed_set
-                    .0
-                    .insert(uvec3(i as u32, 0, j as u32 + 1));
+                if this_orientation == 0 { warn!("A gate at ({}, {}) was not given an orientation", i, j) }
+                if this_orientation == 2 || this_orientation == 4 {
+                    // north or south
+                    obstructed_set
+                        .0
+                        .insert(uvec3(i as u32, 0, j as u32 - 1));
+                    obstructed_set
+                        .0
+                        .insert(uvec3(i as u32, 0, j as u32));
+                    obstructed_set
+                        .0
+                        .insert(uvec3(i as u32, 0, j as u32 + 1));
+                } else if this_orientation == 1 || this_orientation == 3 {
+                    // east or west
+                    obstructed_set
+                        .0
+                        .insert(uvec3(i as u32 - 1, 0, j as u32));
+                    obstructed_set
+                        .0
+                        .insert(uvec3(i as u32, 0, j as u32));
+                    obstructed_set
+                        .0
+                        .insert(uvec3(i as u32 + 1, 0, j as u32));
+                }
             }
         }
     }

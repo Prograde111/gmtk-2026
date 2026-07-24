@@ -90,7 +90,7 @@ fn load_timer_layer(bytes: &[u8], layer: &'static str) -> Result<MapLayer, eyre:
         let blue = pixel.0[2] as u32;
         let timer_type = match blue {
             100 => 1, // signal extension
-            200 => 2, // periodic after activation
+            150 => 2, // periodic after activation
             255 => 3, // global periodic
             _ => 0
         };

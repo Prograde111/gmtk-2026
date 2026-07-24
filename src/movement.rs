@@ -12,7 +12,7 @@ pub fn movement_plugin(app: &mut App) {
 }
 
 #[derive(Component, Clone, Debug)]
-struct CameraTurn {
+pub struct CameraTurn {
     initial_rotation: Quat,
 }
 
@@ -178,7 +178,7 @@ fn input(
         });
     }
 }
-fn do_movement(
+pub fn do_movement(
     player: Single<
         (
             Entity,

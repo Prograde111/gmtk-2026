@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::ecs::{ActivatedPeriodicTimer, Arrow, AvailableActions, CameraRig, Direction, Gate, GlobalPeriodicTimer, GridLocation, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess};
+use crate::ecs::{ActivatedPeriodicTimer, Arrow, AvailableActions, CameraRig, Direction, Gate, GlobalPeriodicTimer, GridLocation, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess, SignalExtensionTimer};
 use crate::ui::ui;
 use crate::{GRID_SIZE, map_loader::WorldMap};
 use bevy::camera::ScalingMode;
@@ -229,16 +229,22 @@ fn generate_map(
             let length = location & 0b1111_1111;
 
             let this_signal = world_map.signals[i][j];
-            if timer_type == 3 {
-                commands.spawn_scene(bsn! {
+            if timer_type == 1 {
+            commands.spawn_scene(bsn! {
                     Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
-                    GlobalPeriodicTimer { period: length, turn_tick: length }
+                    SignalExtensionTimer { length, turn_tick: length, is_triggered: false }
                     SignalAccess({ this_signal as usize })
                 });
             } else if timer_type == 2 {
                 commands.spawn_scene(bsn! {
                     Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
                     ActivatedPeriodicTimer { period: length, turn_tick: length, is_triggered: false }
+                    SignalAccess({ this_signal as usize })
+                });
+            } else if timer_type == 3 {
+                commands.spawn_scene(bsn! {
+                    Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
+                    GlobalPeriodicTimer { period: length, turn_tick: length }
                     SignalAccess({ this_signal as usize })
                 });
             }

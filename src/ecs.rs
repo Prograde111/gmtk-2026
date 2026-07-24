@@ -121,6 +121,7 @@ pub enum Gate {
     #[default]
     Closed
 }
+
 #[derive(Component, Clone, Debug, Default)]
 pub struct GlobalPeriodicTimer {
     pub period: u32,
@@ -130,6 +131,12 @@ pub struct GlobalPeriodicTimer {
 pub struct ActivatedPeriodicTimer {
     pub period: u32,
     pub turn_tick: u32, // it's the thing that tells you how far it is from triggering
+    pub is_triggered: bool,
+}
+#[derive(Component, Clone, Debug, Default)]
+pub struct SignalExtensionTimer {
+    pub length: u32,
+    pub turn_tick: u32,
     pub is_triggered: bool,
 }
 

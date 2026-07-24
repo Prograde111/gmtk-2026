@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::ecs::{Arrow, AvailableActions, CameraRig, Direction, Gate, GridLocation, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess};
+use crate::ecs::{Arrow, AvailableActions, CameraRig, Direction, Gate, GlobalPeriodicTimer, GridLocation, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess};
 use crate::ui::ui;
 use crate::{GRID_SIZE, map_loader::WorldMap};
 use bevy::camera::ScalingMode;
@@ -220,6 +220,21 @@ fn generate_map(
                         .0
                         .insert(uvec3(i as u32 + 1, 0, j as u32));
                 }
+            }
+        }
+    }
+    for (i, row) in world_map.timer.iter().enumerate() {
+        for (j, &location) in row.iter().enumerate() {
+            let timer_type = location >> 8;
+            let length = location & 0b1111_1111;
+
+            let this_signal = world_map.signals[i][j];
+            if timer_type == 3 {
+                commands.spawn_scene(bsn! {
+                    Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
+                    GlobalPeriodicTimer { period: length, turn_tick: length }
+                    SignalAccess({ this_signal as usize })
+                });
             }
         }
     }

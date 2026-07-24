@@ -9,6 +9,7 @@ use pastey::paste;
 pub enum SignalSystems {
     Clear,
     Write,
+    Timer,
     Read,
 }
 
@@ -119,6 +120,11 @@ pub enum Gate {
     Opened,
     #[default]
     Closed
+}
+#[derive(Component, Clone, Debug, Default)]
+pub struct GlobalPeriodicTimer {
+    pub period: u32,
+    pub turn_tick: u32, // it's the thing that tells you how far it is from triggering
 }
 
 #[derive(Component, Clone, Debug)]

@@ -14,6 +14,7 @@ pub struct WorldMap {
     pub stuff: MapLayer,
     pub stuff_orientation: MapLayer,
     pub signals: MapLayer,
+    pub timer: MapLayer,
 }
 
 pub fn load_world_map(signal_layers: &mut SignalLayers) -> Result<WorldMap, eyre::Error> {
@@ -33,6 +34,7 @@ pub fn load_world_map(signal_layers: &mut SignalLayers) -> Result<WorldMap, eyre
         stuff: load_layer(include_bytes!("../assets/maps/stuff.png"), "stuff", regular_color_mapping)?,
         stuff_orientation: load_layer(include_bytes!("../assets/maps/stuff_orientation.png"), "stuff_orientation", orientation_mapping)?,
         signals: load_signals_layer(include_bytes!("../assets/maps/signals.png"), "signals", signal_layers)?,
+        timer: load_timer_layer(include_bytes!("../assets/maps/timer.png"), "timer")?,
     })
 }
 
@@ -53,16 +55,6 @@ fn load_layer(bytes: &[u8], layer: &'static str, color_mapping: HashMap<[u8; 4],
                 return Err(eyre!("invalid pixel: {x} {y} {:?}", pixel.0))
             }
         }
-        /*output[x as usize][y as usize] = match pixel.0 {
-            [_, _, _, 0] => 0, // void
-            [255, 255, 255, 255] => 1, // ground
-            [255, 0, 0, 255] => 2, // pressure plate
-            [154, 114, 46, 255] => 3, // bridge
-            [0, 38, 255, 255] => 4, // gate
-            rgba => {
-                return Err(eyre!("invalid pixel: {x} {y} {rgba:?}"))
-            }
-        };*/
     }
     Ok(output)
 }
@@ -83,11 +75,27 @@ fn load_signals_layer(bytes: &[u8], layer: &'static str, signal_layers: &mut Sig
             output[x as usize][y as usize] = current_signal;
             current_signal += 1;
         }
-        /*output[x as usize][y as usize] = match pixel.0 {
-            rgba => {
-                return Err(eyre!("invalid pixel: {x} {y} {rgba:?}"))
-            }
-        };*/
+    }
+
+    Ok(output)
+}
+fn load_timer_layer(bytes: &[u8], layer: &'static str) -> Result<MapLayer, eyre::Error> {
+    let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?
+        .into_rgba8();
+    check_dimensions(&image, layer)?;
+    let mut output = [[0; MAP_HEIGHT]; MAP_WIDTH];
+
+    for (x, y, pixel) in image.enumerate_pixels() {
+        if pixel.alpha() == 0 { continue }
+        let blue = pixel.0[2] as u32;
+        let timer_type = match blue {
+            100 => 1, // signal extension
+            200 => 2, // periodic after activation
+            255 => 3, // global periodic
+            _ => 0
+        };
+        let length = pixel.0[0] as u32;
+        output[x as usize][y as usize] = timer_type << 8 | length;
     }
 
     Ok(output)

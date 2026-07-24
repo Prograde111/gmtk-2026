@@ -5,6 +5,7 @@ pub mod movement;
 pub mod ui;
 pub mod pressure_plate;
 pub mod gate;
+pub mod global_periodic_timer;
 
 use std::collections::HashSet;
 use crate::ecs::{CompletedTurn, DebugMode, ObstructedSet, SignalLayers, SignalSystems, TurnCounter};
@@ -14,6 +15,7 @@ use crate::movement::movement_plugin;
 use crate::ui::ui_plugin;
 use bevy::prelude::*;
 use crate::gate::gate_plugin;
+use crate::global_periodic_timer::global_periodic_timer_plugin;
 use crate::pressure_plate::pressure_plate_plugin;
 
 pub const MAX_TURN_COUNT: u32 = 1000;
@@ -45,15 +47,19 @@ fn main() {
         .add_plugins(ui_plugin)
         .add_plugins(pressure_plate_plugin)
         .add_plugins(gate_plugin)
+        .add_plugins(global_periodic_timer_plugin)
         .add_systems(Update, clear_signal_layers.in_set(SignalSystems::Clear))
-        .configure_sets(Update, (SignalSystems::Clear, SignalSystems::Write, SignalSystems::Read).chain())
+        .configure_sets(Update, (SignalSystems::Clear, SignalSystems::Write, SignalSystems::Timer, SignalSystems::Read).chain())
         .run();
 }
 
 fn clear_signal_layers(
     mut signal_layers: ResMut<SignalLayers>,
+    mut completed_turns: MessageReader<CompletedTurn>,
 ) {
-    for signal in &mut signal_layers.0 {
-        *signal = false;
+    for _ in completed_turns.read() {
+        for signal in &mut signal_layers.0 {
+            *signal = false;
+        }
     }
 }

@@ -70,8 +70,6 @@ const fn one() -> u32 {
 pub struct MapAssociation {
     pub position: [u32; 2],
     #[serde(default)]
-    pub touch_switch: Option<String>,
-    #[serde(default)]
     pub timers: Option<InitialTimerSlots>,
     #[serde(default)]
     pub activated_by: Option<SignalExpression>,
@@ -81,7 +79,10 @@ pub struct MapAssociation {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InputEffect {
-    pub replace_timers: ReplaceTimers,
+    #[serde(default)]
+    pub touch_switch: Option<String>,
+    #[serde(default)]
+    pub replace_timers: Option<ReplaceTimers>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

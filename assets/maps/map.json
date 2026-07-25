@@ -34,7 +34,9 @@
   "associations": [
     {
       "position": [22, 13],
-      "touch_switch": "clock_plate_1"
+      "on_activate": {
+        "touch_switch": "clock_plate_1"
+      }
     },
     {
       "position": [22, 14],
@@ -49,8 +51,8 @@
 
     {
       "position": [25, 13],
-      "touch_switch": "extension_plate",
       "on_activate": {
+        "touch_switch": "extension_plate",
         "replace_timers": {
           "position": [25, 14],
           "with": ["three_active_turns", false, false]
@@ -86,8 +88,8 @@
 
     {
       "position": [21, 10],
-      "touch_switch": "clock_plate_2",
       "on_activate": {
+        "touch_switch": "clock_plate_2",
         "replace_timers": {
           "position": [22, 10],
           "with": ["every_two_turns", false, false]

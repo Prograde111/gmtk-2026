@@ -1,12 +1,12 @@
 use crate::ecs::Altar;
 use crate::map_json::{
-    InitialTimerSlots, MapJson, ReplaceTimers, SignalExpression, TimerReplacement, TimerTemplate,
+    InitialTimerSlots, MapJson, ReplaceTimers, SignalExpression, TimerTemplate,
 };
 use bevy::math::{UVec2, uvec2};
 use bevy::prelude::Resource;
-use eyre::{bail, eyre};
+use eyre::eyre;
 use image::RgbaImage;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub const MAP_WIDTH: usize = 32;
 pub const MAP_HEIGHT: usize = 32;
@@ -42,22 +42,12 @@ pub fn load_world_map(map_json: &MapJson) -> Result<WorldMap, eyre::Error> {
 
     let mut touched_switches: HashMap<UVec2, Vec<String>> = HashMap::new();
     let mut timer_banks = HashMap::new();
-    let mut configured_timer_banks = HashSet::new();
     let mut activation_conditions: HashMap<UVec2, Vec<SignalExpression>> = HashMap::new();
     let mut input_effects: HashMap<UVec2, Vec<ReplaceTimers>> = HashMap::new();
     for association in &map_json.associations {
         let position = association.position.into();
 
-        if let Some(switch) = &association.touch_switch {
-            touched_switches
-                .entry(position)
-                .or_default()
-                .push(switch.clone());
-        }
-
         if let Some(slots) = &association.timers {
-
-            configured_timer_banks.insert(position);
             timer_banks.insert(position, slots.clone());
         }
 
@@ -69,14 +59,23 @@ pub fn load_world_map(map_json: &MapJson) -> Result<WorldMap, eyre::Error> {
         }
 
         if let Some(effect) = &association.on_activate {
-            let target = effect.replace_timers.position.into();
-            timer_banks
-                .entry(target)
-                .or_insert_with(|| [None, None, None]);
-            input_effects
-                .entry(position)
-                .or_default()
-                .push(effect.replace_timers.clone());
+            if let Some(switch) = &effect.touch_switch {
+                touched_switches
+                    .entry(position)
+                    .or_default()
+                    .push(switch.clone());
+            }
+
+            if let Some(replacement) = &effect.replace_timers {
+                let target = replacement.position.into();
+                timer_banks
+                    .entry(target)
+                    .or_insert_with(|| [None, None, None]);
+                input_effects
+                    .entry(position)
+                    .or_default()
+                    .push(replacement.clone());
+            }
         }
     }
 

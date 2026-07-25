@@ -1,6 +1,6 @@
 {
   "switches": {
-    "clock_plate": {
+    "clock_plate_1": {
       "mode": "hold",
       "initial": false
     },
@@ -8,7 +8,7 @@
       "mode": "hold",
       "initial": false
     },
-    "activated_clock_plate": {
+    "clock_plate_2": {
       "mode": "hold",
       "initial": false
     }
@@ -20,7 +20,7 @@
       "pulse_turns": 1,
       "initial": true
     },
-    "three_turn_extension": {
+    "three_active_turns": {
       "mode": "active_during_countdown",
       "turns": 3,
       "initial": true
@@ -29,30 +29,19 @@
       "mode": "active_after_countdown",
       "turns": 3,
       "initial": true
-    },
-    "first_three_turns": {
-      "mode": "active_during_countdown",
-      "turns": 3,
-      "initial": true
-    },
-    "activated_every_two_turns": {
-      "mode": "periodic",
-      "period": 2,
-      "pulse_turns": 1,
-      "initial": true
     }
   },
   "associations": [
     {
       "position": [22, 13],
-      "touch_switch": "clock_plate"
+      "touch_switch": "clock_plate_1"
     },
     {
       "position": [22, 14],
       "timers": ["every_two_turns", null, null],
       "activated_by": {
         "any": [
-          { "switch": "clock_plate" },
+          { "switch": "clock_plate_1" },
           { "timer": 1 }
         ]
       }
@@ -64,7 +53,7 @@
       "on_activate": {
         "replace_timers": {
           "position": [25, 14],
-          "with": ["three_turn_extension", false, false]
+          "with": ["three_active_turns", false, false]
         }
       }
     },
@@ -89,7 +78,7 @@
 
     {
       "position": [18, 9],
-      "timers": ["first_three_turns", null, null],
+      "timers": ["three_active_turns", null, null],
       "activated_by": {
         "timer": 1
       }
@@ -97,11 +86,11 @@
 
     {
       "position": [21, 10],
-      "touch_switch": "activated_clock_plate",
+      "touch_switch": "clock_plate_2",
       "on_activate": {
         "replace_timers": {
           "position": [22, 10],
-          "with": ["activated_every_two_turns", false, false]
+          "with": ["every_two_turns", false, false]
         }
       }
     },
@@ -110,7 +99,7 @@
       "timers": [null, null, null],
       "activated_by": {
         "any": [
-          { "switch": "activated_clock_plate" },
+          { "switch": "clock_plate_2" },
           { "timer": 1 }
         ]
       }

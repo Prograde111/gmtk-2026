@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::ecs::{ActivatedPeriodicTimer, AfterTurnTimer, Arrow, AvailableActions, CameraRig, Direction, Gate, GlobalPeriodicTimer, GridLocation, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess, SignalExtensionTimer, UntilTurnTimer};
+use crate::ecs::{ActivatedPeriodicTimer, AfterTurnTimer, Altar, Arrow, AvailableActions, CameraRig, ConveyorBelt, Direction, Gate, GlobalPeriodicTimer, GridLocation, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess, SignalExtensionTimer, UntilTurnTimer};
 use crate::ui::ui;
 use crate::{GRID_SIZE, map_loader::WorldMap};
 use bevy::camera::ScalingMode;
@@ -101,11 +101,13 @@ fn generate_map(
     for (i, row) in world_map.ground.iter().enumerate() {
         for (j, &location) in row.iter().enumerate() {
             if location == 0 {
+                // void
                 obstructed_set
                     .0
                     .insert(uvec3(i as u32, 0, j as u32));
             }
             if location == 1 {
+                // ground
                 commands.spawn_scene(bsn! {
                     Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
                     MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(255, 255, 255)))
@@ -122,6 +124,52 @@ fn generate_map(
                     GridLocation(vec3(i as f32, 0.0, j as f32))
                     PressurePlate
                     SignalAccess( { this_signal as usize } )
+                });
+            }
+            if location == 5 {
+                // altar
+                let entity = commands.spawn_scene(bsn! {
+                    Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
+                    MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(168, 73, 255)))
+                    Transform::from_xyz((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
+                    GridLocation(vec3(i as f32, 0.0, j as f32))
+                    Altar
+                });
+            }
+            if location == 6 {
+                // conveyor belt
+                let this_orientation = world_map.stuff_orientation[i][j];
+                let direction = match this_orientation {
+                    1 => Direction::North,
+                    2 => Direction::West,
+                    3 => Direction::South,
+                    4 => Direction::East,
+                    _ => {
+                        error!("Found a conveyor at {}, {} with no orientation", i, j);
+                        Direction::North
+                    },
+                };
+
+                let entity = commands.spawn_scene(bsn! {
+                    Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
+                    MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(99, 99, 99)))
+                    Transform {
+                        translation: vec3((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
+                        rotation: Quat::from_rotation_y(this_orientation as f32 * PI/2.0),
+                    }
+                    GridLocation(vec3(i as f32, 0.0, j as f32))
+                    ConveyorBelt
+                    Orientation(direction)
+                    Children [
+                        (
+                            Mesh3d(asset_value(Cone::new(0.2, 0.6)))
+                            MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(168, 73, 255)))
+                            Transform {
+                                translation: vec3(0.0, 5.0, 0.0)
+                                rotation: Quat::from_euler(EulerRot::YXZ, -PI/2.0, -PI/2.0, 0.0),
+                            }
+                        )
+                    ]
                 });
             }
         }

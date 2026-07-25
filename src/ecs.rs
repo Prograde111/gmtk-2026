@@ -121,6 +121,10 @@ pub enum Gate {
     #[default]
     Closed
 }
+#[derive(Component, Clone, Debug, Default)]
+pub struct Altar;
+#[derive(Component, Clone, Default, Debug)]
+pub struct ConveyorBelt;
 
 #[derive(Component, Clone, Debug, Default)]
 pub struct GlobalPeriodicTimer {
@@ -260,6 +264,15 @@ impl Direction {
             Direction::South => Vec3::Z,
             Direction::East => Vec3::X,
             _ => { error!("Only the cardinal directions have a vec direction"); Vec3::ZERO }
+        }
+    }
+    pub fn to_grid_location_offset(&self) -> Vec3 {
+        match self {
+            Direction::North => vec3(0.0, 0.0, -1.0),
+            Direction::West => vec3(-1.0, 0.0, 0.0),
+            Direction::South => vec3(0.0, 0.0, 1.0),
+            Direction::East => vec3(1.0, 0.0, 0.0),
+            _ => { error!("Only the cardinal directions have a location offset direction"); Vec3::ZERO }
         }
     }
 }

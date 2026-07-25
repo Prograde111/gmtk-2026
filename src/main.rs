@@ -9,6 +9,9 @@ pub mod global_periodic_timer;
 pub mod activated_periodic_timer;
 pub mod signal_extension_timer;
 pub mod on_turn_timer;
+pub mod altar_ui;
+pub mod altar;
+pub mod conveyor_belt;
 
 use std::collections::HashSet;
 use crate::ecs::{CompletedTurn, DebugMode, ObstructedSet, SignalLayers, SignalSystems, TurnCounter};
@@ -18,6 +21,7 @@ use crate::movement::movement_plugin;
 use crate::ui::ui_plugin;
 use bevy::prelude::*;
 use crate::activated_periodic_timer::activated_periodic_timer_plugin;
+use crate::conveyor_belt::conveyor_belt_plugin;
 use crate::gate::gate_plugin;
 use crate::global_periodic_timer::global_periodic_timer_plugin;
 use crate::on_turn_timer::on_turn_timer_plugin;
@@ -53,6 +57,7 @@ fn main() {
         .add_plugins(ui_plugin)
         .add_plugins(pressure_plate_plugin)
         .add_plugins(gate_plugin)
+        .add_plugins(conveyor_belt_plugin)
         .add_plugins(global_periodic_timer_plugin)
         .add_plugins(activated_periodic_timer_plugin)
         .add_plugins(signal_extension_timer_plugin)

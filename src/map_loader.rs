@@ -23,6 +23,8 @@ pub fn load_world_map(signal_layers: &mut SignalLayers) -> Result<WorldMap, eyre
     regular_color_mapping.insert([255, 0, 0, 255], 2); // pressure plate
     regular_color_mapping.insert([154, 114, 46, 255], 3); // bridge
     regular_color_mapping.insert([0, 38, 255, 255], 4); // gate
+    regular_color_mapping.insert([168, 73, 255, 255], 5); // altar
+    regular_color_mapping.insert([99, 99, 99, 255], 6); // conveyor belt
 
     let mut orientation_mapping = HashMap::new();
     orientation_mapping.insert([0, 255, 255, 255], 1); // north

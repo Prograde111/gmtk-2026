@@ -8,7 +8,6 @@ use crate::ui::ui;
 use crate::{GRID_SIZE, map_loader::WorldMap};
 use bevy::camera::ScalingMode;
 use bevy::prelude::*;
-use std::collections::HashSet;
 use std::f32::consts::PI;
 
 pub fn game_scene_plugin(app: &mut App) {
@@ -208,12 +207,8 @@ fn generate_map(
             }
         }
     }
-    let mut already_processed = HashSet::new();
     for (i, row) in world_map.stuff.iter().enumerate() {
         for (j, &location) in row.iter().enumerate() {
-            if already_processed.contains(&uvec2(i as u32, j as u32)) {
-                continue;
-            }
             if location == 2 {
                 commands.spawn_scene(bsn! {
                     /*Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
@@ -229,45 +224,48 @@ fn generate_map(
                 });
             }
             if location == 3 {
-                // bridge
-                let mut bridge_pieces = Vec::new();
-                find_bridge(
-                    world_map.stuff,
-                    i,
-                    j,
-                    &mut bridge_pieces,
-                    &mut already_processed,
-                );
+                let grid_location = uvec2(i as u32, j as u32);
+                let Some(segment) = bridge_segment(&world_map.stuff, i, j) else {
+                    warn!("Bridge at ({i}, {j}) has no neighboring bridge tile");
+                    continue;
+                };
 
-                for (location, segment) in bridge_pieces {
-                    match segment {
-                        BridgeSegment::HorizontalMiddle => {
-                            commands.spawn_scene(bridge_middle(location, Quat::IDENTITY));
-                            obstructed_set.0.remove(&uvec3(location.x, 0, location.y));
-                        }
-                        BridgeSegment::VerticalMiddle => {
-                            commands.spawn_scene(bridge_middle(
-                                location,
-                                Quat::from_rotation_y(PI / 2.0),
-                            ));
-                            obstructed_set.0.remove(&uvec3(location.x, 0, location.y));
-                        }
-                        BridgeSegment::BottomEnd => {
-                            commands
-                                .spawn_scene(bridge_end(location, Quat::from_rotation_y(PI / 2.0)));
-                        }
-                        BridgeSegment::TopEnd => {
-                            commands.spawn_scene(bridge_end(
-                                location,
-                                Quat::from_rotation_y(-PI / 2.0),
-                            ));
-                        }
-                        BridgeSegment::LeftEnd => {
-                            commands.spawn_scene(bridge_end(location, Quat::from_rotation_y(0.0)));
-                        }
-                        BridgeSegment::RightEnd => {
-                            commands.spawn_scene(bridge_end(location, Quat::from_rotation_y(PI)));
-                        }
+                match segment {
+                    BridgeSegment::HorizontalMiddle => {
+                        commands.spawn_scene(bridge_middle(grid_location, Quat::IDENTITY));
+                        obstructed_set
+                            .0
+                            .remove(&uvec3(grid_location.x, 0, grid_location.y));
+                    }
+                    BridgeSegment::VerticalMiddle => {
+                        commands.spawn_scene(bridge_middle(
+                            grid_location,
+                            Quat::from_rotation_y(PI / 2.0),
+                        ));
+                        obstructed_set
+                            .0
+                            .remove(&uvec3(grid_location.x, 0, grid_location.y));
+                    }
+                    BridgeSegment::BottomEnd => {
+                        commands.spawn_scene(bridge_end(
+                            grid_location,
+                            Quat::from_rotation_y(PI / 2.0),
+                        ));
+                    }
+                    BridgeSegment::TopEnd => {
+                        commands.spawn_scene(bridge_end(
+                            grid_location,
+                            Quat::from_rotation_y(-PI / 2.0),
+                        ));
+                    }
+                    BridgeSegment::LeftEnd => {
+                        commands.spawn_scene(bridge_end(grid_location, Quat::IDENTITY));
+                    }
+                    BridgeSegment::RightEnd => {
+                        commands.spawn_scene(bridge_end(
+                            grid_location,
+                            Quat::from_rotation_y(PI),
+                        ));
                     }
                 }
             }
@@ -366,7 +364,8 @@ fn bridge_end(grid_location: UVec2, rotation: Quat) -> impl Scene {
     }
 }
 
-pub enum BridgeSegment {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BridgeSegment {
     TopEnd,
     LeftEnd,
     VerticalMiddle,
@@ -374,127 +373,37 @@ pub enum BridgeSegment {
     BottomEnd,
     RightEnd,
 }
-/// recursively searches all nearby cells to find bridge pieces. returns list of bridge coordinates through bridge_pieces
-fn find_bridge(
-    layer: MapLayer,
-    i: usize,
-    j: usize,
-    bridge_pieces: &mut Vec<(UVec2, BridgeSegment)>,
-    already_processed: &mut HashSet<UVec2>,
-) {
-    let up = layer.get(i).map_or(false, |row| {
-        row.get(j - 1).map_or(false, |location| {
-            *location == 3 && !already_processed.contains(&uvec2(i as u32, j as u32 - 1))
-        })
-    });
-    let down = layer.get(i).map_or(false, |row| {
-        row.get(j + 1).map_or(false, |location| {
-            *location == 3 && !already_processed.contains(&uvec2(i as u32, j as u32 + 1))
-        })
-    });
 
-    let left = layer.get(i - 1).map_or(false, |row| {
-        row.get(j).map_or(false, |location| {
-            *location == 3 && !already_processed.contains(&uvec2(i as u32 - 1, j as u32))
-        })
-    });
-    let right = layer.get(i + 1).map_or(false, |row| {
-        row.get(j).map_or(false, |location| {
-            *location == 3 && !already_processed.contains(&uvec2(i as u32 + 1, j as u32))
-        })
-    });
-
-    if up || down {
-        // ok, this bridge is going vertically
-        find_bridge_vertical(layer, i, j, bridge_pieces, already_processed);
-    } else if left || right {
-        // ok, this bridge is going horizontally
-        find_bridge_horizontal(layer, i, j, bridge_pieces, already_processed);
-    }
-}
-
-fn find_bridge_vertical(
-    layer: MapLayer,
-    i: usize,
-    j: usize,
-    bridge_pieces: &mut Vec<(UVec2, BridgeSegment)>,
-    already_processed: &mut HashSet<UVec2>,
-) {
-    let up = layer.get(i).map_or(false, |row| {
-        row.get(j - 1).map_or(false, |location| *location == 3)
-    });
-    let up_processed = already_processed.contains(&uvec2(i as u32, j as u32 - 1));
-
-    let down = layer.get(i).map_or(false, |row| {
-        row.get(j + 1).map_or(false, |location| *location == 3)
-    });
-    let down_processed = already_processed.contains(&uvec2(i as u32, j as u32 + 1));
+fn bridge_segment(layer: &MapLayer, i: usize, j: usize) -> Option<BridgeSegment> {
+    let up = is_bridge(layer, i as isize, j as isize - 1);
+    let down = is_bridge(layer, i as isize, j as isize + 1);
+    let left = is_bridge(layer, i as isize - 1, j as isize);
+    let right = is_bridge(layer, i as isize + 1, j as isize);
 
     if up && down {
-        already_processed.insert(uvec2(i as u32, j as u32));
-        bridge_pieces.push((uvec2(i as u32, j as u32), BridgeSegment::VerticalMiddle));
-        if !up_processed {
-            find_bridge_vertical(layer, i, j - 1, bridge_pieces, already_processed);
-        }
-        if !down_processed {
-            find_bridge_vertical(layer, i, j + 1, bridge_pieces, already_processed);
-        }
+        Some(BridgeSegment::VerticalMiddle)
+    } else if left && right {
+        Some(BridgeSegment::HorizontalMiddle)
     } else if up {
-        // down is false
-        already_processed.insert(uvec2(i as u32, j as u32));
-        bridge_pieces.push((uvec2(i as u32, j as u32), BridgeSegment::BottomEnd));
-        if !up_processed {
-            find_bridge_vertical(layer, i, j - 1, bridge_pieces, already_processed);
-        }
+        Some(BridgeSegment::BottomEnd)
     } else if down {
-        // up is false
-        already_processed.insert(uvec2(i as u32, j as u32));
-        bridge_pieces.push((uvec2(i as u32, j as u32), BridgeSegment::TopEnd));
-        if !down_processed {
-            find_bridge_vertical(layer, i, j + 1, bridge_pieces, already_processed);
-        }
+        Some(BridgeSegment::TopEnd)
+    } else if left {
+        Some(BridgeSegment::RightEnd)
+    } else if right {
+        Some(BridgeSegment::LeftEnd)
+    } else {
+        None
     }
 }
 
-fn find_bridge_horizontal(
-    layer: MapLayer,
-    i: usize,
-    j: usize,
-    bridge_pieces: &mut Vec<(UVec2, BridgeSegment)>,
-    already_processed: &mut HashSet<UVec2>,
-) {
-    let left = layer.get(i - 1).map_or(false, |row| {
-        row.get(j).map_or(false, |location| *location == 3)
-    });
-    let left_processed = already_processed.contains(&uvec2(i as u32 - 1, j as u32));
-
-    let right = layer.get(i + 1).map_or(false, |row| {
-        row.get(j).map_or(false, |location| *location == 3)
-    });
-    let right_processed = already_processed.contains(&uvec2(i as u32 + 1, j as u32));
-
-    if left && right {
-        already_processed.insert(uvec2(i as u32, j as u32));
-        bridge_pieces.push((uvec2(i as u32, j as u32), BridgeSegment::HorizontalMiddle));
-        if !left_processed {
-            find_bridge_horizontal(layer, i - 1, j, bridge_pieces, already_processed);
-        }
-        if !right_processed {
-            find_bridge_horizontal(layer, i + 1, j, bridge_pieces, already_processed);
-        }
-    } else if left {
-        // right is false
-        already_processed.insert(uvec2(i as u32, j as u32));
-        bridge_pieces.push((uvec2(i as u32, j as u32), BridgeSegment::RightEnd));
-        if !left_processed {
-            find_bridge_horizontal(layer, i - 1, j, bridge_pieces, already_processed);
-        }
-    } else if right {
-        // left is false
-        already_processed.insert(uvec2(i as u32, j as u32));
-        bridge_pieces.push((uvec2(i as u32, j as u32), BridgeSegment::LeftEnd));
-        if !right_processed {
-            find_bridge_horizontal(layer, i + 1, j, bridge_pieces, already_processed);
-        }
+fn is_bridge(layer: &MapLayer, i: isize, j: isize) -> bool {
+    if i < 0 || j < 0 {
+        return false;
     }
+
+    layer
+        .get(i as usize)
+        .and_then(|row| row.get(j as usize))
+        .is_some_and(|location| *location == 3)
 }

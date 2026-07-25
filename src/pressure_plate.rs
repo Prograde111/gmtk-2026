@@ -1,8 +1,34 @@
 use bevy::prelude::*;
-use crate::ecs::{GridLocation, Player, PressurePlate, SignalAccess, SignalLayers, SignalSystems};
+use crate::conveyor_belt::conveyor_belt_move;
+use crate::ecs::{CompletedTurn, GridLocation, Player, PressurePlate, SignalAccess, SignalLayers, SignalSystems};
+use crate::sfx::{PlaySfx, Sfx, SfxSystems};
 
 pub fn pressure_plate_plugin(app: &mut App) {
-    app.add_systems(Update, detect_player.in_set(SignalSystems::Write));
+    app.add_systems(Update, detect_player.in_set(SignalSystems::Write))
+        .add_systems(
+            Update,
+            pressure_plate_sfx
+                .in_set(SfxSystems::Trigger)
+                .after(conveyor_belt_move),
+        );
+}
+
+fn pressure_plate_sfx(
+    player: Single<&GridLocation, With<Player>>,
+    pressure_plates: Query<&GridLocation, (With<PressurePlate>, Without<Player>)>,
+    mut completed_turns: MessageReader<CompletedTurn>,
+    mut play_sfx: MessageWriter<PlaySfx>,
+) {
+    let player_location = player.0.as_uvec3();
+    for completed_turn in completed_turns.read() {
+        if completed_turn.old_location != player_location
+            && pressure_plates
+                .iter()
+                .any(|plate_location| plate_location.0.as_uvec3() == player_location)
+        {
+            play_sfx.write(PlaySfx(Sfx::PressurePlate));
+        }
+    }
 }
 
 pub fn detect_player(

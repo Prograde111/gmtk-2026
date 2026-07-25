@@ -1,7 +1,7 @@
-use bevy::prelude::*;
 use crate::ecs::{Altar, AvailableActions, CompletedTurn, GridLocation, ObstructedSet, Player};
 use crate::story::{GamePhase, SkillSacrificed, StorySystems};
 use crate::{GRID_SIZE, PLAYER_SIZE};
+use bevy::prelude::*;
 
 pub fn altar_plugin(app: &mut App) {
     app.add_systems(
@@ -31,7 +31,9 @@ pub fn detect_player(
                 info!("Removed action {:?}", altar.0.key_code());
                 // now move back
                 player_location.0 = completed_turn.old_location.as_vec3();
-                player_transform.translation = completed_turn.old_location.as_vec3() * vec3(GRID_SIZE.x, 0.0, GRID_SIZE.y) + vec3(0.0, PLAYER_SIZE.y/2.0, 0.0);
+                player_transform.translation = completed_turn.old_location.as_vec3()
+                    * vec3(GRID_SIZE.x, 0.0, GRID_SIZE.y)
+                    + vec3(0.0, PLAYER_SIZE.y / 2.0, 0.0);
                 player_transform.rotation = completed_turn.old_rotation;
                 // and now make the altar unable to be entered again
                 obstructed_set.0.insert(altar_location.0.as_uvec3());

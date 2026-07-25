@@ -1,11 +1,10 @@
 use crate::MAX_TURN_COUNT;
 use crate::ecs::{
-    ActivatedPeriodicTimer, AfterTurnTimer, Altar, Arrow, AvailableActions, CameraRig, Direction,
-    Gate, GlobalPeriodicTimer, GridLocation, InitialObstructedSet, Moving, ObstructedSet,
-    Orientation, Player, PlayerAction, SignalExtensionTimer, SignalLayers, TurnCountText,
-    TurnCounter, UntilTurnTimer,
+    Altar, Arrow, AvailableActions, CameraRig, Direction, Gate, GridLocation, InitialObstructedSet,
+    Moving, ObstructedSet, Orientation, Player, PlayerAction, TurnCountText, TurnCounter,
 };
 use crate::movement::CameraTurn;
+use crate::signal_logic::{SwitchStates, TimerBank};
 use bevy::prelude::*;
 use bevy::text::LineBreak;
 use std::collections::VecDeque;
@@ -238,7 +237,6 @@ fn reset_level(
     mut reset: MessageReader<ResetGame>,
     initial_obstructions: Res<InitialObstructedSet>,
     mut obstructed_set: ResMut<ObstructedSet>,
-    mut signal_layers: ResMut<SignalLayers>,
     mut altars: Query<(&GridLocation, &mut Transform), With<Altar>>,
     mut gates: Query<(&mut Gate, &mut Transform), Without<Altar>>,
 ) {
@@ -247,7 +245,6 @@ fn reset_level(
     }
 
     obstructed_set.0.clone_from(&initial_obstructions.0);
-    signal_layers.0.fill(false);
     for (location, mut transform) in &mut altars {
         transform.translation = location.to_world_space() + vec3(0.0, -5.0, 0.0);
     }
@@ -259,32 +256,16 @@ fn reset_level(
 
 fn reset_timers(
     mut reset: MessageReader<ResetGame>,
-    mut global: Query<&mut GlobalPeriodicTimer>,
-    mut activated: Query<&mut ActivatedPeriodicTimer>,
-    mut extensions: Query<&mut SignalExtensionTimer>,
-    mut after: Query<&mut AfterTurnTimer>,
-    mut until: Query<&mut UntilTurnTimer>,
+    mut switches: ResMut<SwitchStates>,
+    mut timers: Query<&mut TimerBank>,
 ) {
     if reset.read().next().is_none() {
         return;
     }
 
-    for mut timer in &mut global {
-        timer.turn_tick = timer.period;
-    }
-    for mut timer in &mut activated {
-        timer.turn_tick = timer.period;
-        timer.is_triggered = false;
-    }
-    for mut timer in &mut extensions {
-        timer.turn_tick = timer.length;
-        timer.is_triggered = false;
-    }
-    for mut timer in &mut after {
-        timer.turn_tick = 0;
-    }
-    for mut timer in &mut until {
-        timer.turn_tick = 0;
+    switches.reset();
+    for mut timer in &mut timers {
+        timer.reset();
     }
 }
 
@@ -298,10 +279,9 @@ fn display_story(
 ) {
     let turns_completed = completed_turns.read().count().min(u8::MAX as usize) as u8;
     let (camera, camera_transform) = camera.into_inner();
-    let Ok(viewport_position) = camera.world_to_viewport(
-        camera_transform,
-        player.translation + vec3(0.0, 2.1, 0.0),
-    ) else {
+    let Ok(viewport_position) =
+        camera.world_to_viewport(camera_transform, player.translation + vec3(0.0, 2.1, 0.0))
+    else {
         return;
     };
 

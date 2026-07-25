@@ -1,4 +1,7 @@
-use crate::ecs::{Arrow, AvailableActions, CameraRig, CompletedTurn, DebugMode, Direction, GridLocation, Moving, ObstructedSet, Orientation, Player, PlayerAction, TurnCounter};
+use crate::ecs::{
+    Arrow, AvailableActions, CameraRig, CompletedTurn, DebugMode, Direction, GridLocation, Moving,
+    ObstructedSet, Orientation, Player, PlayerAction, TurnCounter,
+};
 use crate::sfx::{PlaySfx, Sfx, SfxSystems};
 use crate::story::GamePhase;
 use crate::{ANIMATION_LENGTH, PLAYER_SIZE};
@@ -11,7 +14,7 @@ pub fn movement_plugin(app: &mut App) {
         .add_systems(Update, input.run_if(in_state(GamePhase::Playing)))
         .add_systems(Update, movement_sfx.in_set(SfxSystems::Trigger))
         .add_systems(Update, (do_movement, follow_camera).chain());
-        //.add_systems(Update, detect_special_tile);
+    //.add_systems(Update, detect_special_tile);
 }
 
 #[derive(Component, Clone, Debug)]
@@ -77,7 +80,16 @@ fn movement_sfx(
 }
 
 fn input(
-    player: Single<(Entity, &Transform, &AvailableActions, &GridLocation, &Orientation), (With<Player>, Without<Moving>)>,
+    player: Single<
+        (
+            Entity,
+            &Transform,
+            &AvailableActions,
+            &GridLocation,
+            &Orientation,
+        ),
+        (With<Player>, Without<Moving>),
+    >,
     camera: Single<(Entity, &Transform), (With<CameraRig>, Without<Player>)>,
     debug_mode: Res<DebugMode>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -88,12 +100,20 @@ fn input(
         return;
     }
 
-    let (player_entity, transform, available_actions, grid_location, orientation) = player.into_inner();
+    let (player_entity, transform, available_actions, grid_location, orientation) =
+        player.into_inner();
     let (camera_entity, camera_transform) = camera.into_inner();
     if action_just_pressed(&keys, available_actions, PlayerAction::RollForward) {
         // roll north 1 space
-        let future_grid_location = grid_location.0 + orientation.0.to_rotation() * Direction::North.to_vec_direction();
-        if obstructed_set.0.get(&future_grid_location.as_uvec3()).is_some() { return }
+        let future_grid_location =
+            grid_location.0 + orientation.0.to_rotation() * Direction::North.to_vec_direction();
+        if obstructed_set
+            .0
+            .get(&future_grid_location.as_uvec3())
+            .is_some()
+        {
+            return;
+        }
 
         commands.entity(player_entity).insert(Moving {
             direction: Direction::North,
@@ -103,8 +123,15 @@ fn input(
     }
     if action_just_pressed(&keys, available_actions, PlayerAction::RollBackward) {
         // roll south
-        let future_grid_location = grid_location.0 + orientation.0.to_rotation() * Direction::South.to_vec_direction();
-        if obstructed_set.0.get(&future_grid_location.as_uvec3()).is_some() { return }
+        let future_grid_location =
+            grid_location.0 + orientation.0.to_rotation() * Direction::South.to_vec_direction();
+        if obstructed_set
+            .0
+            .get(&future_grid_location.as_uvec3())
+            .is_some()
+        {
+            return;
+        }
 
         commands.entity(player_entity).insert(Moving {
             direction: Direction::South,
@@ -114,8 +141,15 @@ fn input(
     }
     if action_just_pressed(&keys, available_actions, PlayerAction::RollLeft) {
         // roll west
-        let future_grid_location = grid_location.0 + orientation.0.to_rotation() * Direction::West.to_vec_direction();
-        if obstructed_set.0.get(&future_grid_location.as_uvec3()).is_some() { return }
+        let future_grid_location =
+            grid_location.0 + orientation.0.to_rotation() * Direction::West.to_vec_direction();
+        if obstructed_set
+            .0
+            .get(&future_grid_location.as_uvec3())
+            .is_some()
+        {
+            return;
+        }
 
         commands.entity(player_entity).insert(Moving {
             direction: Direction::West,
@@ -125,8 +159,15 @@ fn input(
     }
     if action_just_pressed(&keys, available_actions, PlayerAction::RollRight) {
         // roll east
-        let future_grid_location = grid_location.0 + orientation.0.to_rotation() * Direction::East.to_vec_direction();
-        if obstructed_set.0.get(&future_grid_location.as_uvec3()).is_some() { return }
+        let future_grid_location =
+            grid_location.0 + orientation.0.to_rotation() * Direction::East.to_vec_direction();
+        if obstructed_set
+            .0
+            .get(&future_grid_location.as_uvec3())
+            .is_some()
+        {
+            return;
+        }
 
         commands.entity(player_entity).insert(Moving {
             direction: Direction::East,
@@ -172,8 +213,15 @@ fn input(
     }
     if action_just_pressed(&keys, available_actions, PlayerAction::SlideLeft) {
         // slide left (translate, no roll)
-        let future_grid_location = grid_location.0 + orientation.0.to_rotation() * Direction::West.to_vec_direction();
-        if obstructed_set.0.get(&future_grid_location.as_uvec3()).is_some() { return }
+        let future_grid_location =
+            grid_location.0 + orientation.0.to_rotation() * Direction::West.to_vec_direction();
+        if obstructed_set
+            .0
+            .get(&future_grid_location.as_uvec3())
+            .is_some()
+        {
+            return;
+        }
 
         commands.entity(player_entity).insert(Moving {
             direction: Direction::SlideLeft,
@@ -183,8 +231,15 @@ fn input(
     }
     if action_just_pressed(&keys, available_actions, PlayerAction::SlideRight) {
         // slide right
-        let future_grid_location = grid_location.0 + orientation.0.to_rotation() * Direction::East.to_vec_direction();
-        if obstructed_set.0.get(&future_grid_location.as_uvec3()).is_some() { return }
+        let future_grid_location =
+            grid_location.0 + orientation.0.to_rotation() * Direction::East.to_vec_direction();
+        if obstructed_set
+            .0
+            .get(&future_grid_location.as_uvec3())
+            .is_some()
+        {
+            return;
+        }
 
         commands.entity(player_entity).insert(Moving {
             direction: Direction::SlideRight,
@@ -338,12 +393,7 @@ pub fn do_movement(
                 return;
             };
             rotate_camera_around_y(&mut camera_transform, camera_turn, progress, true);
-            rotate_around_y(
-                &mut transform,
-                &moving.initial_rotation,
-                progress,
-                true,
-            );
+            rotate_around_y(&mut transform, &moving.initial_rotation, progress, true);
             rotate_around_y(
                 &mut arrow_transform,
                 &orientation.0.to_rotation(),
@@ -353,8 +403,10 @@ pub fn do_movement(
             if progress >= 1.0 {
                 commands.entity(player_entity).remove::<Moving>();
                 commands.entity(camera_entity).remove::<CameraTurn>();
-                transform.rotation = Quat::from_axis_angle(Vec3::Y, PI/2.0) * moving.initial_rotation;
-                camera_transform.rotation = Quat::from_axis_angle(Vec3::Y, PI/2.0) * camera_turn.initial_rotation;
+                transform.rotation =
+                    Quat::from_axis_angle(Vec3::Y, PI / 2.0) * moving.initial_rotation;
+                camera_transform.rotation =
+                    Quat::from_axis_angle(Vec3::Y, PI / 2.0) * camera_turn.initial_rotation;
 
                 *orientation = Orientation(orientation.0.turn_left());
                 arrow_transform.rotation = orientation.0.to_rotation();
@@ -372,12 +424,7 @@ pub fn do_movement(
                 return;
             };
             rotate_camera_around_y(&mut camera_transform, camera_turn, progress, false);
-            rotate_around_y(
-                &mut transform,
-                &moving.initial_rotation,
-                progress,
-                false,
-            );
+            rotate_around_y(&mut transform, &moving.initial_rotation, progress, false);
             rotate_around_y(
                 &mut arrow_transform,
                 &orientation.0.to_rotation(),
@@ -387,8 +434,10 @@ pub fn do_movement(
             if progress >= 1.0 {
                 commands.entity(player_entity).remove::<Moving>();
                 commands.entity(camera_entity).remove::<CameraTurn>();
-                transform.rotation = Quat::from_axis_angle(Vec3::Y, -PI/2.0) * moving.initial_rotation;
-                camera_transform.rotation = Quat::from_axis_angle(Vec3::Y, -PI/2.0) * camera_turn.initial_rotation;
+                transform.rotation =
+                    Quat::from_axis_angle(Vec3::Y, -PI / 2.0) * moving.initial_rotation;
+                camera_transform.rotation =
+                    Quat::from_axis_angle(Vec3::Y, -PI / 2.0) * camera_turn.initial_rotation;
 
                 *orientation = Orientation(orientation.0.turn_right());
                 arrow_transform.rotation = orientation.0.to_rotation();
@@ -422,7 +471,8 @@ pub fn do_movement(
                 commands.entity(player_entity).remove::<Moving>();
                 commands.entity(camera_entity).remove::<CameraTurn>();
                 transform.rotation = Quat::from_axis_angle(Vec3::Y, PI) * moving.initial_rotation;
-                camera_transform.rotation = Quat::from_axis_angle(Vec3::Y, PI) * camera_turn.initial_rotation;
+                camera_transform.rotation =
+                    Quat::from_axis_angle(Vec3::Y, PI) * camera_turn.initial_rotation;
 
                 *orientation = Orientation(orientation.0.turn_left().turn_left());
                 arrow_transform.rotation = orientation.0.to_rotation();

@@ -1,22 +1,24 @@
-use std::collections::HashSet;
-use crate::ecs::{ActivatedPeriodicTimer, AfterTurnTimer, Altar, Arrow, AvailableActions, CameraRig, ConveyorBelt, Direction, Gate, GlobalPeriodicTimer, GridLocation, InitialObstructedSet, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess, SignalExtensionTimer, UntilTurnTimer};
+use crate::ecs::{
+    Arrow, AvailableActions, CameraRig, ConveyorBelt, Direction, Gate, GridLocation,
+    InitialObstructedSet, ObstructedSet, Orientation, Player, PressurePlate,
+};
+use crate::map_loader::MapLayer;
+use crate::signal_logic::TimerBank;
 use crate::ui::ui;
 use crate::{GRID_SIZE, map_loader::WorldMap};
 use bevy::camera::ScalingMode;
 use bevy::prelude::*;
+use std::collections::HashSet;
 use std::f32::consts::PI;
-use crate::map_json::Signal;
-use crate::map_loader::MapLayer;
 
 pub fn game_scene_plugin(app: &mut App) {
-    app.add_systems(Startup, scene.spawn())
-        .add_systems(Startup, (generate_map, capture_initial_obstructions).chain());
+    app.add_systems(Startup, scene.spawn()).add_systems(
+        Startup,
+        (generate_map, capture_initial_obstructions).chain(),
+    );
 }
 
-fn capture_initial_obstructions(
-    mut commands: Commands,
-    obstructed_set: Res<ObstructedSet>,
-) {
+fn capture_initial_obstructions(mut commands: Commands, obstructed_set: Res<ObstructedSet>) {
     commands.insert_resource(InitialObstructedSet(obstructed_set.0.clone()));
 }
 
@@ -112,9 +114,7 @@ fn generate_map(
         for (j, &location) in row.iter().enumerate() {
             if location == 0 {
                 // void
-                obstructed_set
-                    .0
-                    .insert(uvec3(i as u32, 0, j as u32));
+                obstructed_set.0.insert(uvec3(i as u32, 0, j as u32));
             }
             if location == 1 {
                 // ground
@@ -136,10 +136,10 @@ fn generate_map(
                     _ => {
                         error!("Found a conveyor at {}, {} with no orientation", i, j);
                         Direction::North
-                    },
+                    }
                 };
 
-                let entity = commands.spawn_scene(bsn! {
+                commands.spawn_scene(bsn! {
                     Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
                     MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(99, 99, 99)))
                     Transform {
@@ -166,11 +166,11 @@ fn generate_map(
     let mut already_processed = HashSet::new();
     for (i, row) in world_map.stuff.iter().enumerate() {
         for (j, &location) in row.iter().enumerate() {
-            if already_processed.contains(&uvec2(i as u32, j as u32)) { continue }
+            if already_processed.contains(&uvec2(i as u32, j as u32)) {
+                continue;
+            }
             if location == 2 {
-                // pressure plate interacts with signals, check for that
-                let this_signal = world_map.signals.get(&uvec2(i as u32, j as u32)).cloned().unwrap_or_default();
-                let entity = commands.spawn_scene(bsn! {
+                commands.spawn_scene(bsn! {
                     /*Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
                     MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(255, 100, 100)))*/
                     template(|ctx| {
@@ -181,13 +181,18 @@ fn generate_map(
                     Transform::from_xyz((i as f32) * GRID_SIZE.x, -1.0, (j as f32) * GRID_SIZE.y)
                     GridLocation(vec3(i as f32, 0.0, j as f32))
                     PressurePlate
-                    SignalAccess( { this_signal.layer as usize } )
                 });
             }
             if location == 3 {
                 // bridge
                 let mut bridge_pieces = Vec::new();
-                find_bridge(world_map.stuff, i, j, &mut bridge_pieces, &mut already_processed);
+                find_bridge(
+                    world_map.stuff,
+                    i,
+                    j,
+                    &mut bridge_pieces,
+                    &mut already_processed,
+                );
 
                 for (location, segment) in bridge_pieces {
                     match segment {
@@ -196,14 +201,21 @@ fn generate_map(
                             obstructed_set.0.remove(&uvec3(location.x, 0, location.y));
                         }
                         BridgeSegment::VerticalMiddle => {
-                            commands.spawn_scene(bridge_middle(location, Quat::from_rotation_y(PI/2.0)));
+                            commands.spawn_scene(bridge_middle(
+                                location,
+                                Quat::from_rotation_y(PI / 2.0),
+                            ));
                             obstructed_set.0.remove(&uvec3(location.x, 0, location.y));
                         }
                         BridgeSegment::BottomEnd => {
-                            commands.spawn_scene(bridge_end(location, Quat::from_rotation_y(PI/2.0)));
+                            commands
+                                .spawn_scene(bridge_end(location, Quat::from_rotation_y(PI / 2.0)));
                         }
                         BridgeSegment::TopEnd => {
-                            commands.spawn_scene(bridge_end(location, Quat::from_rotation_y(-PI/2.0)));
+                            commands.spawn_scene(bridge_end(
+                                location,
+                                Quat::from_rotation_y(-PI / 2.0),
+                            ));
                         }
                         BridgeSegment::LeftEnd => {
                             commands.spawn_scene(bridge_end(location, Quat::from_rotation_y(0.0)));
@@ -216,7 +228,6 @@ fn generate_map(
             }
             if location == 4 {
                 // gate
-                let this_signal = world_map.signals.get(&uvec2(i as u32, j as u32)).cloned().unwrap_or_default();
                 let this_orientation = world_map.stuff_orientation[i][j];
                 commands.spawn_scene(bsn! {
                     template(|ctx| {
@@ -235,7 +246,6 @@ fn generate_map(
                             GltfAssetLabel::Scene(0).from_asset("models/gate/gate.gltf")
                         )))
                     })
-                    SignalAccess( { this_signal.layer as usize } )
                     GridLocation(vec3(i as f32, 0.0, j as f32))
                     Transform {
                         translation: vec3((i as f32) * GRID_SIZE.x, 0.0, (j as f32) * GRID_SIZE.y)
@@ -243,71 +253,38 @@ fn generate_map(
                     }
                     template_value(Gate::Closed)
                 });
-                if this_orientation == 0 { warn!("A gate at ({}, {}) was not given an orientation", i, j) }
+                if this_orientation == 0 {
+                    warn!("A gate at ({}, {}) was not given an orientation", i, j)
+                }
                 if this_orientation == 2 || this_orientation == 4 {
                     // north or south
-                    obstructed_set
-                        .0
-                        .insert(uvec3(i as u32, 0, j as u32 - 1));
-                    obstructed_set
-                        .0
-                        .insert(uvec3(i as u32, 0, j as u32));
-                    obstructed_set
-                        .0
-                        .insert(uvec3(i as u32, 0, j as u32 + 1));
+                    obstructed_set.0.insert(uvec3(i as u32, 0, j as u32 - 1));
+                    obstructed_set.0.insert(uvec3(i as u32, 0, j as u32));
+                    obstructed_set.0.insert(uvec3(i as u32, 0, j as u32 + 1));
                 } else if this_orientation == 1 || this_orientation == 3 {
                     // east or west
-                    obstructed_set
-                        .0
-                        .insert(uvec3(i as u32 - 1, 0, j as u32));
-                    obstructed_set
-                        .0
-                        .insert(uvec3(i as u32, 0, j as u32));
-                    obstructed_set
-                        .0
-                        .insert(uvec3(i as u32 + 1, 0, j as u32));
+                    obstructed_set.0.insert(uvec3(i as u32 - 1, 0, j as u32));
+                    obstructed_set.0.insert(uvec3(i as u32, 0, j as u32));
+                    obstructed_set.0.insert(uvec3(i as u32 + 1, 0, j as u32));
                 }
             }
         }
     }
-    for (location, timer) in world_map.timers.iter() {
-        let this_signal = world_map.signals.get(&location).cloned().unwrap_or_default();
-        if timer.timer_type == "SignalExtension" {
-            commands.spawn((
-                    Transform::from_xyz(location.x as f32 * GRID_SIZE.x, 3.0, location.y as f32 * GRID_SIZE.y),
-                    SignalExtensionTimer { length: { timer.length }, turn_tick: { timer.length }, is_triggered: false },
-                    SignalAccess({ this_signal.layer as usize }),
-            ));
-        } else if timer.timer_type == "ActivatedPeriodic" {
-            commands.spawn((
-                Transform::from_xyz(location.x as f32 * GRID_SIZE.x, 3.0, location.y as f32 * GRID_SIZE.y),
-                ActivatedPeriodicTimer { period: { timer.length }, turn_tick: { timer.length }, is_triggered: false },
-                SignalAccess({ this_signal.layer as usize }),
-            ));
-        } else if timer.timer_type == "GlobalPeriodic" {
-            commands.spawn((
-                Transform::from_xyz(location.x as f32 * GRID_SIZE.x, 3.0, location.y as f32 * GRID_SIZE.y),
-                GlobalPeriodicTimer { period: { timer.length }, turn_tick: { timer.length } },
-                SignalAccess({ this_signal.layer as usize }),
-            ));
-        } else if timer.timer_type == "AfterTurn" {
-            commands.spawn((
-                Transform::from_xyz(location.x as f32 * GRID_SIZE.x, 3.0, location.y as f32 * GRID_SIZE.y),
-                AfterTurnTimer { trigger_turn: { timer.length }, turn_tick: 0 },
-                SignalAccess({ this_signal.layer as usize }),
-            ));
-        } else if timer.timer_type == "UntilTurn" {
-            commands.spawn((
-                Transform::from_xyz(location.x as f32 * GRID_SIZE.x, 3.0, location.y as f32 * GRID_SIZE.y),
-                UntilTurnTimer { trigger_turn: { timer.length }, turn_tick: 0 },
-                SignalAccess({ this_signal.layer as usize }),
-            ));
-        }
+    for (location, slots) in &world_map.timer_banks {
+        commands.spawn((
+            Transform::from_xyz(
+                location.x as f32 * GRID_SIZE.x,
+                3.0,
+                location.y as f32 * GRID_SIZE.y,
+            ),
+            GridLocation(vec3(location.x as f32, 0.0, location.y as f32)),
+            TimerBank::new(slots, &world_map.timers),
+        ));
     }
     for (location, altar) in world_map.altars.iter() {
         let location = location.clone();
         // altar
-        let entity = commands.spawn_scene(bsn! {
+        commands.spawn_scene(bsn! {
             Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
             MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(168, 73, 255)))
             Transform::from_xyz((location.x as f32) * GRID_SIZE.x, -5.0, (location.y as f32) * GRID_SIZE.y)
@@ -360,23 +337,27 @@ fn find_bridge(
     bridge_pieces: &mut Vec<(UVec2, BridgeSegment)>,
     already_processed: &mut HashSet<UVec2>,
 ) {
-    let up = layer.get(i)
-        .map_or(false, |row| row.get(j-1)
-            .map_or(false, |location| *location == 3 &&
-                !already_processed.contains(&uvec2(i as u32, j as u32 - 1))));
-    let down = layer.get(i)
-        .map_or(false, |row| row.get(j+1)
-            .map_or(false, |location| *location == 3 &&
-                !already_processed.contains(&uvec2(i as u32, j as u32 + 1))));
+    let up = layer.get(i).map_or(false, |row| {
+        row.get(j - 1).map_or(false, |location| {
+            *location == 3 && !already_processed.contains(&uvec2(i as u32, j as u32 - 1))
+        })
+    });
+    let down = layer.get(i).map_or(false, |row| {
+        row.get(j + 1).map_or(false, |location| {
+            *location == 3 && !already_processed.contains(&uvec2(i as u32, j as u32 + 1))
+        })
+    });
 
-    let left = layer.get(i-1)
-        .map_or(false, |row| row.get(j)
-            .map_or(false, |location| *location == 3 &&
-                !already_processed.contains(&uvec2(i as u32 - 1, j as u32))));
-    let right = layer.get(i+1)
-        .map_or(false, |row| row.get(j)
-            .map_or(false, |location| *location == 3 &&
-                !already_processed.contains(&uvec2(i as u32 + 1, j as u32))));
+    let left = layer.get(i - 1).map_or(false, |row| {
+        row.get(j).map_or(false, |location| {
+            *location == 3 && !already_processed.contains(&uvec2(i as u32 - 1, j as u32))
+        })
+    });
+    let right = layer.get(i + 1).map_or(false, |row| {
+        row.get(j).map_or(false, |location| {
+            *location == 3 && !already_processed.contains(&uvec2(i as u32 + 1, j as u32))
+        })
+    });
 
     if up || down {
         // ok, this bridge is going vertically
@@ -394,14 +375,14 @@ fn find_bridge_vertical(
     bridge_pieces: &mut Vec<(UVec2, BridgeSegment)>,
     already_processed: &mut HashSet<UVec2>,
 ) {
-    let up = layer.get(i)
-        .map_or(false, |row| row.get(j-1)
-            .map_or(false, |location| *location == 3));
+    let up = layer.get(i).map_or(false, |row| {
+        row.get(j - 1).map_or(false, |location| *location == 3)
+    });
     let up_processed = already_processed.contains(&uvec2(i as u32, j as u32 - 1));
 
-    let down = layer.get(i)
-        .map_or(false, |row| row.get(j+1)
-            .map_or(false, |location| *location == 3));
+    let down = layer.get(i).map_or(false, |row| {
+        row.get(j + 1).map_or(false, |location| *location == 3)
+    });
     let down_processed = already_processed.contains(&uvec2(i as u32, j as u32 + 1));
 
     if up && down {
@@ -413,13 +394,15 @@ fn find_bridge_vertical(
         if !down_processed {
             find_bridge_vertical(layer, i, j + 1, bridge_pieces, already_processed);
         }
-    } else if up { // down is false
+    } else if up {
+        // down is false
         already_processed.insert(uvec2(i as u32, j as u32));
         bridge_pieces.push((uvec2(i as u32, j as u32), BridgeSegment::BottomEnd));
         if !up_processed {
             find_bridge_vertical(layer, i, j - 1, bridge_pieces, already_processed);
         }
-    } else if down { // up is false
+    } else if down {
+        // up is false
         already_processed.insert(uvec2(i as u32, j as u32));
         bridge_pieces.push((uvec2(i as u32, j as u32), BridgeSegment::TopEnd));
         if !down_processed {
@@ -435,14 +418,14 @@ fn find_bridge_horizontal(
     bridge_pieces: &mut Vec<(UVec2, BridgeSegment)>,
     already_processed: &mut HashSet<UVec2>,
 ) {
-    let left = layer.get(i-1)
-        .map_or(false, |row| row.get(j)
-            .map_or(false, |location| *location == 3));
+    let left = layer.get(i - 1).map_or(false, |row| {
+        row.get(j).map_or(false, |location| *location == 3)
+    });
     let left_processed = already_processed.contains(&uvec2(i as u32 - 1, j as u32));
 
-    let right = layer.get(i+1)
-        .map_or(false, |row| row.get(j)
-            .map_or(false, |location| *location == 3));
+    let right = layer.get(i + 1).map_or(false, |row| {
+        row.get(j).map_or(false, |location| *location == 3)
+    });
     let right_processed = already_processed.contains(&uvec2(i as u32 + 1, j as u32));
 
     if left && right {
@@ -454,13 +437,15 @@ fn find_bridge_horizontal(
         if !right_processed {
             find_bridge_horizontal(layer, i + 1, j, bridge_pieces, already_processed);
         }
-    } else if left { // right is false
+    } else if left {
+        // right is false
         already_processed.insert(uvec2(i as u32, j as u32));
         bridge_pieces.push((uvec2(i as u32, j as u32), BridgeSegment::RightEnd));
         if !left_processed {
             find_bridge_horizontal(layer, i - 1, j, bridge_pieces, already_processed);
         }
-    } else if right { // left is false
+    } else if right {
+        // left is false
         already_processed.insert(uvec2(i as u32, j as u32));
         bridge_pieces.push((uvec2(i as u32, j as u32), BridgeSegment::LeftEnd));
         if !right_processed {

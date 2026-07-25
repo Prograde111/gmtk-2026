@@ -1,14 +1,12 @@
 use crate::{GRID_SIZE, PLAYER_SIZE};
 use bevy::prelude::*;
-use std::collections::{HashMap, HashSet};
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::f32::consts::PI;
 use std::time::Instant;
-use pastey::paste;
-use serde::{Deserialize, Serialize};
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SignalSystems {
-    Clear,
     Write,
     Timer,
     Read,
@@ -117,51 +115,18 @@ pub struct ObstructedSet(pub HashSet<UVec3>);
 pub struct InitialObstructedSet(pub HashSet<UVec3>);
 //#[derive(Resource, Clone, Default, Debug)]
 //pub struct SpecialTileSet(pub HashMap<UVec3, (SpecialTileType, Entity)>);
-#[derive(Resource, Clone, Default, Debug)]
-pub struct SignalLayers(pub Vec<bool>);
-#[derive(Component, Clone, Default, Debug)]
-pub struct SignalAccess(pub usize); // stores the index into the SignalLayers list
-
 #[derive(Component, Clone, Default, Debug)]
 pub struct PressurePlate;
 #[derive(Component, Clone, Debug, Default)]
 pub enum Gate {
     Opened,
     #[default]
-    Closed
+    Closed,
 }
 #[derive(Component, Clone, Debug, Default)]
 pub struct Altar(pub PlayerAction);
 #[derive(Component, Clone, Default, Debug)]
 pub struct ConveyorBelt;
-
-#[derive(Component, Clone, Debug, Default)]
-pub struct GlobalPeriodicTimer {
-    pub period: u32,
-    pub turn_tick: u32, // it's the thing that tells you how far it is from triggering
-}
-#[derive(Component, Clone, Debug, Default)]
-pub struct ActivatedPeriodicTimer {
-    pub period: u32,
-    pub turn_tick: u32, // it's the thing that tells you how far it is from triggering
-    pub is_triggered: bool,
-}
-#[derive(Component, Clone, Debug, Default)]
-pub struct SignalExtensionTimer {
-    pub length: u32,
-    pub turn_tick: u32,
-    pub is_triggered: bool,
-}
-#[derive(Component, Clone, Debug, Default)]
-pub struct UntilTurnTimer {
-    pub trigger_turn: u32,
-    pub turn_tick: u32,
-}
-#[derive(Component, Clone, Debug, Default)]
-pub struct AfterTurnTimer {
-    pub trigger_turn: u32,
-    pub turn_tick: u32,
-}
 
 #[derive(Component, Clone, Debug)]
 pub struct Moving {
@@ -273,7 +238,10 @@ impl Direction {
             Direction::West => -Vec3::X,
             Direction::South => Vec3::Z,
             Direction::East => Vec3::X,
-            _ => { error!("Only the cardinal directions have a vec direction"); Vec3::ZERO }
+            _ => {
+                error!("Only the cardinal directions have a vec direction");
+                Vec3::ZERO
+            }
         }
     }
     pub fn to_grid_location_offset(&self) -> Vec3 {
@@ -282,7 +250,10 @@ impl Direction {
             Direction::West => vec3(-1.0, 0.0, 0.0),
             Direction::South => vec3(0.0, 0.0, 1.0),
             Direction::East => vec3(1.0, 0.0, 0.0),
-            _ => { error!("Only the cardinal directions have a location offset direction"); Vec3::ZERO }
+            _ => {
+                error!("Only the cardinal directions have a location offset direction");
+                Vec3::ZERO
+            }
         }
     }
 }

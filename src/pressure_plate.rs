@@ -1,16 +1,27 @@
 use bevy::prelude::*;
+
 use crate::conveyor_belt::conveyor_belt_move;
-use crate::ecs::{CompletedTurn, GridLocation, Player, PressurePlate, SignalAccess, SignalLayers, SignalSystems};
+use crate::ecs::{CompletedTurn, GridLocation, Player, PressurePlate, SignalSystems};
+use crate::map_json::SwitchMode;
+use crate::map_loader::WorldMap;
 use crate::sfx::{PlaySfx, Sfx, SfxSystems};
+use crate::signal_logic::{
+    ReplaceTimersRequest, SignalSnapshot, SwitchStates, TimerBank, activation_at,
+};
 
 pub fn pressure_plate_plugin(app: &mut App) {
-    app.add_systems(Update, detect_player.in_set(SignalSystems::Write))
-        .add_systems(
-            Update,
-            pressure_plate_sfx
-                .in_set(SfxSystems::Trigger)
-                .after(conveyor_belt_move),
-        );
+    app.add_systems(
+        Update,
+        update_switches
+            .in_set(SignalSystems::Write)
+            .after(crate::movement::do_movement),
+    )
+    .add_systems(
+        Update,
+        pressure_plate_sfx
+            .in_set(SfxSystems::Trigger)
+            .after(conveyor_belt_move),
+    );
 }
 
 fn pressure_plate_sfx(
@@ -31,19 +42,58 @@ fn pressure_plate_sfx(
     }
 }
 
-pub fn detect_player(
+fn update_switches(
     player: Single<&GridLocation, With<Player>>,
-    pressure_plate_query: Query<(&GridLocation, &SignalAccess), (With<PressurePlate>, Without<Player>)>,
-    mut signal_layers: ResMut<SignalLayers>,
+    pressure_plates: Query<&GridLocation, (With<PressurePlate>, Without<Player>)>,
+    timers: Query<(&GridLocation, &TimerBank)>,
+    world_map: Res<WorldMap>,
+    mut switches: ResMut<SwitchStates>,
+    mut completed_turns: MessageReader<CompletedTurn>,
+    mut replace_timers: MessageWriter<ReplaceTimersRequest>,
 ) {
-    let player_location = *player;
-    for (pressure_plate_location, signal_access) in pressure_plate_query.iter() {
-        if pressure_plate_location.0 == player_location.0 {
-            if let Some(signal) = signal_layers.0.get_mut(signal_access.0) {
-                *signal |= true;
-            } else {
-                error!("Could not find signal layer from signal access {}", signal_access.0);
+    let old_locations: Vec<UVec3> = completed_turns
+        .read()
+        .map(|turn| turn.old_location)
+        .collect();
+    if old_locations.is_empty() {
+        return;
+    }
+
+    let snapshot = SignalSnapshot::capture(&switches, &timers);
+    let player_position = uvec2(player.0.x as u32, player.0.z as u32);
+    let active_plate = pressure_plates
+        .iter()
+        .map(|location| uvec2(location.0.x as u32, location.0.z as u32))
+        .find(|position| {
+            *position == player_position
+                && activation_at(&world_map, *position, &snapshot).unwrap_or(true)
+        });
+
+    let touched_switches = active_plate
+        .and_then(|position| world_map.touched_switches.get(&position))
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+
+    if let Some(position) = active_plate {
+        let position_3d = uvec3(position.x, 0, position.y);
+        if old_locations.iter().any(|old| *old != position_3d) {
+            if let Some(effects) = world_map.input_effects.get(&position) {
+                for effect in effects {
+                    replace_timers.write(ReplaceTimersRequest(effect.clone()));
+                }
             }
         }
+    }
+
+    for (id, switch) in &mut switches.0 {
+        let is_touched = touched_switches.iter().any(|touched| touched == id);
+        match switch.mode {
+            SwitchMode::Hold => switch.active = is_touched,
+            SwitchMode::Toggle if is_touched && !switch.touched_last_turn => {
+                switch.active = !switch.active;
+            }
+            SwitchMode::Toggle => {}
+        }
+        switch.touched_last_turn = is_touched;
     }
 }

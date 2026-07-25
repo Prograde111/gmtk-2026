@@ -1,6 +1,9 @@
 use bevy::prelude::*;
-use crate::ecs::{Gate, GridLocation, ObstructedSet, SignalAccess, SignalLayers, SignalSystems};
+
+use crate::ecs::{Gate, GridLocation, ObstructedSet, SignalSystems};
+use crate::map_loader::WorldMap;
 use crate::sfx::{PlaySfx, Sfx, SfxSystems};
+use crate::signal_logic::{SignalSnapshot, SwitchStates, TimerBank, activation_at};
 
 pub fn gate_plugin(app: &mut App) {
     app.add_systems(
@@ -12,28 +15,32 @@ pub fn gate_plugin(app: &mut App) {
 }
 
 fn signal_check(
-    signal_layers: Res<SignalLayers>,
-    mut gate_query: Query<(&SignalAccess, &mut Gate, &mut Transform, &GridLocation)>,
+    switches: Res<SwitchStates>,
+    world_map: Res<WorldMap>,
+    timers: Query<(&GridLocation, &TimerBank)>,
+    mut gate_query: Query<(&mut Gate, &mut Transform, &GridLocation)>,
     mut obstructed_set: ResMut<ObstructedSet>,
     mut play_sfx: MessageWriter<PlaySfx>,
 ) {
-    for (signal_access, mut gate, mut transform, location) in gate_query.iter_mut() {
-        if let Some(signal) = signal_layers.0.get(signal_access.0) {
-            let changed = matches!((&*gate, *signal), (Gate::Closed, true) | (Gate::Opened, false));
-            if *signal {
-                *gate = Gate::Opened;
-                obstructed_set.0.remove(&location.0.as_uvec3());
-                transform.translation.y = -5.0;
-            } else {
-                *gate = Gate::Closed;
-                obstructed_set.0.insert(location.0.as_uvec3());
-                transform.translation.y = 0.0;
-            }
-            if changed {
-                play_sfx.write(PlaySfx(Sfx::Gate));
-            }
+    let snapshot = SignalSnapshot::capture(&switches, &timers);
+    for (mut gate, mut transform, location) in &mut gate_query {
+        let position = uvec2(location.0.x as u32, location.0.z as u32);
+        let active = activation_at(&world_map, position, &snapshot).unwrap_or(false);
+        let changed = matches!(
+            (&*gate, active),
+            (Gate::Closed, true) | (Gate::Opened, false)
+        );
+        if active {
+            *gate = Gate::Opened;
+            obstructed_set.0.remove(&location.0.as_uvec3());
+            transform.translation.y = -5.0;
         } else {
-            error!("Could not find signal layer from signal access {}", signal_access.0);
+            *gate = Gate::Closed;
+            obstructed_set.0.insert(location.0.as_uvec3());
+            transform.translation.y = 0.0;
+        }
+        if changed {
+            play_sfx.write(PlaySfx(Sfx::Gate));
         }
     }
 }

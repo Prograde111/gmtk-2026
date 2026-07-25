@@ -1,12 +1,13 @@
-use crate::ecs::{Arrow, AvailableActions, CameraRig, CompletedTurn, DebugMode, Direction, GridLocation, Moving, ObstructedSet, Orientation, Player, PlayerAction, PressurePlate, TurnCounter};
+use crate::ecs::{Arrow, AvailableActions, CameraRig, CompletedTurn, DebugMode, Direction, GridLocation, Moving, ObstructedSet, Orientation, Player, PlayerAction, TurnCounter};
+use crate::sfx::{PlaySfx, Sfx, SfxSystems};
 use crate::{ANIMATION_LENGTH, PLAYER_SIZE};
 use bevy::prelude::*;
 use std::f32::consts::PI;
 use std::time::Instant;
-use pastey::paste;
 
 pub fn movement_plugin(app: &mut App) {
     app.add_systems(Update, (toggle_actions, input))
+        .add_systems(Update, movement_sfx.in_set(SfxSystems::Trigger))
         .add_systems(Update, (do_movement, follow_camera).chain());
         //.add_systems(Update, detect_special_tile);
 }
@@ -49,6 +50,26 @@ fn toggle_actions(
                     "unavailable"
                 }
             );
+        }
+    }
+}
+
+fn movement_sfx(
+    moving: Query<&Moving, (With<Player>, Added<Moving>)>,
+    mut play_sfx: MessageWriter<PlaySfx>,
+) {
+    for moving in &moving {
+        let sfx = match moving.direction {
+            Direction::North | Direction::East | Direction::South | Direction::West => {
+                Some(Sfx::Roll)
+            }
+            Direction::SlideLeft | Direction::SlideRight => Some(Sfx::Slide),
+            Direction::Left | Direction::Right | Direction::Around => Some(Sfx::Turn),
+            Direction::Wait => None,
+        };
+
+        if let Some(sfx) = sfx {
+            play_sfx.write(PlaySfx(sfx));
         }
     }
 }

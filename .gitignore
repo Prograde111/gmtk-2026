@@ -1,4 +1,6 @@
 /target
 
-# Keep the lossless BGM source exports locally; the game loads the compressed Ogg stems.
+# Keep source audio exports locally; the game loads the compressed Ogg files.
 /assets/music/bgm/*.aif
+/assets/sfx/**/*.mp3
+/assets/sfx/*.mp3

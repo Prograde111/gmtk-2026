@@ -2773,6 +2773,8 @@ dependencies = [
  "eyre",
  "image",
  "pastey",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

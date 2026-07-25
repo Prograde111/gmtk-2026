@@ -125,8 +125,11 @@ pub enum Gate {
 }
 #[derive(Component, Clone, Debug, Default)]
 pub struct Altar(pub PlayerAction);
-#[derive(Component, Clone, Default, Debug)]
-pub struct ConveyorBelt;
+#[derive(Component, Clone, Debug, Default)]
+pub struct ConveyorBelt {
+    pub initial_orientation: Direction,
+    pub initial_rotation: Quat,
+}
 
 #[derive(Component, Clone, Debug)]
 pub struct Moving {

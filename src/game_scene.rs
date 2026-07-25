@@ -139,15 +139,19 @@ fn generate_map(
                     }
                 };
 
+                let rotation = Quat::from_rotation_y(this_orientation as f32 * PI / 2.0);
                 commands.spawn_scene(bsn! {
                     Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
                     MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(99, 99, 99)))
                     Transform {
                         translation: vec3((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
-                        rotation: Quat::from_rotation_y(this_orientation as f32 * PI/2.0),
+                        rotation,
                     }
                     GridLocation(vec3(i as f32, 0.0, j as f32))
-                    ConveyorBelt
+                    ConveyorBelt {
+                        initial_orientation: direction,
+                        initial_rotation: rotation,
+                    }
                     Orientation(direction)
                     Children [
                         (

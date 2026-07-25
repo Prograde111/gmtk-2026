@@ -3,16 +3,16 @@ use bevy::audio::{AudioSinkPlayback, Volume};
 use bevy::prelude::*;
 
 const STEMS: [(PlayerAction, &str); 10] = [
-    (PlayerAction::RollForward, "music/bgm/Drumkit_1.ogg"),
-    (PlayerAction::RollBackward, "music/bgm/Flute_1.ogg"),
+    (PlayerAction::RollForward, "music/bgm/Flute_1.ogg"),
+    (PlayerAction::RollBackward, "music/bgm/Synth_1.ogg"),
     (PlayerAction::RollLeft, "music/bgm/Organ_1.ogg"),
     (PlayerAction::RollRight, "music/bgm/Piano_1.ogg"),
     (PlayerAction::TurnLeft, "music/bgm/Strings_1.ogg"),
-    (PlayerAction::TurnRight, "music/bgm/Synth_1.ogg"),
+    (PlayerAction::TurnRight, "music/bgm/Wurly_1.ogg"),
     (PlayerAction::TurnAround, "music/bgm/Triangle_1.ogg"),
     (PlayerAction::SlideLeft, "music/bgm/Vox Hi_1.ogg"),
     (PlayerAction::SlideRight, "music/bgm/Vox Lo_1.ogg"),
-    (PlayerAction::Wait, "music/bgm/Wurly_1.ogg"),
+    (PlayerAction::Wait,  "music/bgm/Drumkit_1.ogg"),
 ];
 
 #[derive(Resource)]

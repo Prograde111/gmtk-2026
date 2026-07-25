@@ -1,0 +1,107 @@
+{
+  "switches": {
+    "clock_plate_1": {
+      "mode": "hold",
+      "initial": false
+    },
+    "extension_plate": {
+      "mode": "hold",
+      "initial": false
+    },
+    "clock_plate_2": {
+      "mode": "hold",
+      "initial": false
+    }
+  },
+  "timers": {
+    "every_two_turns": {
+      "mode": "periodic",
+      "period": 2,
+      "pulse_turns": 1,
+      "initial": true
+    },
+    "three_active_turns": {
+      "mode": "active_during_countdown",
+      "turns": 3,
+      "initial": true
+    },
+    "after_three_turns": {
+      "mode": "active_after_countdown",
+      "turns": 3,
+      "initial": true
+    }
+  },
+  "associations": [
+    {
+      "position": [22, 13],
+      "on_activate": {
+        "touch_switch": "clock_plate_1"
+      }
+    },
+    {
+      "position": [22, 14],
+      "timers": ["every_two_turns", null, null],
+      "activated_by": {
+        "any": [{ "switch": "clock_plate_1" }, { "timer": 1 }]
+      }
+    },
+
+    {
+      "position": [25, 13],
+      "on_activate": {
+        "touch_switch": "extension_plate",
+        "replace_timers": {
+          "position": [25, 14],
+          "with": ["three_active_turns", false, false]
+        }
+      }
+    },
+    {
+      "position": [25, 14],
+      "timers": [null, null, null],
+      "activated_by": {
+        "any": [{ "switch": "extension_plate" }, { "timer": 1 }]
+      }
+    },
+
+    {
+      "position": [18, 16],
+      "timers": ["after_three_turns", null, null],
+      "activated_by": {
+        "timer": 1
+      }
+    },
+
+    {
+      "position": [18, 9],
+      "timers": ["three_active_turns", null, null],
+      "activated_by": {
+        "timer": 1
+      }
+    },
+
+    {
+      "position": [21, 10],
+      "on_activate": {
+        "touch_switch": "clock_plate_2",
+        "replace_timers": {
+          "position": [22, 10],
+          "with": ["every_two_turns", false, false]
+        }
+      }
+    },
+    {
+      "position": [22, 10],
+      "timers": [null, null, null],
+      "activated_by": {
+        "any": [{ "switch": "clock_plate_2" }, { "timer": 1 }]
+      }
+    }
+  ],
+  "altars": [
+    {
+      "position": [25, 10],
+      "action": "RollForward"
+    }
+  ]
+}

@@ -1,22 +1,45 @@
 use crate::ecs::Altar;
-use crate::map_json::{
-    InitialTimerSlots, MapJson, ReplaceTimers, SignalExpression, TimerTemplate,
-};
+use crate::map_json::{InitialTimerSlots, MapJson, ReplaceTimers, SignalExpression, TimerTemplate};
 use bevy::math::{UVec2, uvec2};
 use bevy::prelude::Resource;
 use eyre::eyre;
 use image::RgbaImage;
 use std::collections::HashMap;
 
-pub const MAP_WIDTH: usize = 32;
-pub const MAP_HEIGHT: usize = 32;
-pub type MapLayer = [[u32; MAP_HEIGHT]; MAP_WIDTH];
+pub const MAP_WIDTH: usize = 55;
+pub const MAP_HEIGHT: usize = 105;
+pub type MapLayer<T> = [[T; MAP_HEIGHT]; MAP_WIDTH];
+pub type TileLayer = MapLayer<MapTile>;
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum GroundTile {
+    #[default]
+    Void,
+    Ground,
+    Conveyor,
+    ArrowBlock,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum StuffTile {
+    #[default]
+    None,
+    PressurePlate,
+    Bridge,
+    Gate,
+    Altar,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct MapTile {
+    pub ground: GroundTile,
+    pub stuff: StuffTile,
+}
 
 #[derive(Resource)]
 pub struct WorldMap {
-    pub ground: MapLayer,
-    pub stuff: MapLayer,
-    pub stuff_orientation: MapLayer,
+    pub tiles: TileLayer,
+    pub orientation: MapLayer<u32>,
     pub touched_switches: HashMap<UVec2, Vec<String>>,
     pub timer_banks: HashMap<UVec2, InitialTimerSlots>,
     pub activation_conditions: HashMap<UVec2, Vec<SignalExpression>>,
@@ -26,13 +49,63 @@ pub struct WorldMap {
 }
 
 pub fn load_world_map(map_json: &MapJson) -> Result<WorldMap, eyre::Error> {
-    let mut regular_color_mapping = HashMap::new();
-    regular_color_mapping.insert([255, 255, 255, 255], 1); // ground
-    regular_color_mapping.insert([255, 0, 0, 255], 2); // pressure plate
-    regular_color_mapping.insert([154, 114, 46, 255], 3); // bridge
-    regular_color_mapping.insert([0, 38, 255, 255], 4); // gate
-    regular_color_mapping.insert([99, 99, 99, 255], 5); // conveyor belt
-    regular_color_mapping.insert([0, 255, 0, 255], 6); // arrow block
+    let mut tile_mapping = HashMap::new();
+    tile_mapping.insert(
+        [255, 255, 255, 255],
+        MapTile {
+            ground: GroundTile::Ground,
+            stuff: StuffTile::None,
+        },
+    );
+    tile_mapping.insert(
+        [168, 73, 255, 255],
+        MapTile {
+            ground: GroundTile::Ground,
+            stuff: StuffTile::Altar,
+        },
+    );
+    tile_mapping.insert(
+        [99, 99, 99, 255],
+        MapTile {
+            ground: GroundTile::Conveyor,
+            stuff: StuffTile::None,
+        },
+    );
+    tile_mapping.insert(
+        [0, 255, 0, 255],
+        MapTile {
+            ground: GroundTile::ArrowBlock,
+            stuff: StuffTile::None,
+        },
+    );
+    tile_mapping.insert(
+        [255, 0, 0, 255],
+        MapTile {
+            ground: GroundTile::Ground,
+            stuff: StuffTile::PressurePlate,
+        },
+    );
+    tile_mapping.insert(
+        [154, 114, 46, 255],
+        MapTile {
+            ground: GroundTile::Void,
+            stuff: StuffTile::Bridge,
+        },
+    );
+    tile_mapping.insert(
+        [198, 156, 109, 255],
+        MapTile {
+            ground: GroundTile::Ground,
+            stuff: StuffTile::Bridge,
+        },
+    );
+    tile_mapping.insert(
+        [0, 38, 255, 255],
+        MapTile {
+            ground: GroundTile::Ground,
+            stuff: StuffTile::Gate,
+        },
+    );
 
     let mut orientation_mapping = HashMap::new();
     orientation_mapping.insert([0, 255, 255, 255], 1); // north
@@ -87,22 +160,43 @@ pub fn load_world_map(map_json: &MapJson) -> Result<WorldMap, eyre::Error> {
         );
     }
 
+    let tiles = load_layer(
+        include_bytes!("../assets/maps/map.png"),
+        "map",
+        tile_mapping,
+    )?;
+    let orientation = load_layer(
+        include_bytes!("../assets/maps/orientation.png"),
+        "orientation",
+        orientation_mapping,
+    )?;
+
+    for (x, column) in tiles.iter().enumerate() {
+        for (y, tile) in column.iter().enumerate() {
+            if tile.stuff == StuffTile::Altar
+                && !altars.contains_key(&uvec2(x as u32, y as u32))
+            {
+                return Err(eyre!("altar at {x} {y} has no action in map.json"));
+            }
+        }
+    }
+    for position in altars.keys() {
+        if tiles
+            .get(position.x as usize)
+            .and_then(|column| column.get(position.y as usize))
+            .is_none_or(|tile| tile.stuff != StuffTile::Altar)
+        {
+            return Err(eyre!(
+                "altar action at {} {} has no purple tile in map.png",
+                position.x,
+                position.y
+            ));
+        }
+    }
+
     Ok(WorldMap {
-        ground: load_layer(
-            include_bytes!("../assets/maps/ground.png"),
-            "ground",
-            regular_color_mapping.clone(),
-        )?,
-        stuff: load_layer(
-            include_bytes!("../assets/maps/stuff.png"),
-            "stuff",
-            regular_color_mapping,
-        )?,
-        stuff_orientation: load_layer(
-            include_bytes!("../assets/maps/stuff_orientation.png"),
-            "stuff_orientation",
-            orientation_mapping,
-        )?,
+        tiles,
+        orientation,
         touched_switches,
         timer_banks,
         activation_conditions,
@@ -112,26 +206,26 @@ pub fn load_world_map(map_json: &MapJson) -> Result<WorldMap, eyre::Error> {
     })
 }
 
-
-fn load_layer(
+fn load_layer<T: Copy + Default>(
     bytes: &[u8],
     layer: &'static str,
-    color_mapping: HashMap<[u8; 4], u32>,
-) -> Result<MapLayer, eyre::Error> {
+    color_mapping: HashMap<[u8; 4], T>,
+) -> Result<MapLayer<T>, eyre::Error> {
     let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?.into_rgba8();
 
     check_dimensions(&image, layer)?;
 
-    let mut output = [[0; MAP_HEIGHT]; MAP_WIDTH];
-    for (x, y, pixel) in image.enumerate_pixels() {
-        if let Some(mapping) = color_mapping.get(&pixel.0) {
-            output[x as usize][y as usize] = *mapping;
-        } else {
-            if pixel.0[3] == 0 {
-                output[x as usize][y as usize] = 0;
+    let mut output = [[T::default(); MAP_HEIGHT]; MAP_WIDTH];
+    for (x, column) in output.iter_mut().enumerate() {
+        for (y, tile) in column.iter_mut().enumerate() {
+            let pixel = image.get_pixel(x as u32, y as u32);
+            *tile = if let Some(mapping) = color_mapping.get(&pixel.0) {
+                *mapping
+            } else if pixel.0[3] == 0 {
+                T::default()
             } else {
-                return Err(eyre!("invalid pixel: {x} {y} {:?}", pixel.0));
-            }
+                return Err(eyre!("invalid tile pixel: {x} {y} {:?}", pixel.0));
+            };
         }
     }
     Ok(output)
@@ -139,9 +233,11 @@ fn load_layer(
 
 fn check_dimensions(image: &RgbaImage, layer: &'static str) -> Result<(), eyre::Error> {
     let (width, height) = image.dimensions();
-    if width != MAP_WIDTH as u32 || height != MAP_HEIGHT as u32 {
+    let expected_width = MAP_WIDTH as u32;
+    let expected_height = MAP_HEIGHT as u32;
+    if width != expected_width || height != expected_height {
         return Err(eyre!(
-            "wrong size: {layer} (should be {MAP_WIDTH} {MAP_HEIGHT}; got {width} {height})"
+            "wrong size: {layer} (should be {expected_width} {expected_height}; got {width} {height})"
         ));
     }
     Ok(())

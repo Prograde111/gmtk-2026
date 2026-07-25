@@ -2,7 +2,7 @@ use crate::ecs::{
     Arrow, ArrowBlock, AvailableActions, CameraRig, ConveyorBelt, Direction, Gate, GridLocation,
     InitialObstructedSet, ObstructedSet, Orientation, Player, PressurePlate,
 };
-use crate::map_loader::MapLayer;
+use crate::map_loader::{GroundTile, StuffTile, TileLayer};
 use crate::signal_logic::TimerBank;
 use crate::ui::ui;
 use crate::{GRID_SIZE, map_loader::WorldMap};
@@ -109,13 +109,13 @@ fn generate_map(
     //mut special_tile_set: ResMut<SpecialTileSet>,
     world_map: Res<WorldMap>,
 ) {
-    for (i, row) in world_map.ground.iter().enumerate() {
-        for (j, &location) in row.iter().enumerate() {
-            if location == 0 {
+    for (i, row) in world_map.tiles.iter().enumerate() {
+        for (j, tile) in row.iter().enumerate() {
+            if tile.ground == GroundTile::Void {
                 // void
                 obstructed_set.0.insert(uvec3(i as u32, 0, j as u32));
             }
-            if location == 1 {
+            if tile.ground == GroundTile::Ground {
                 // ground
                 commands.spawn_scene(bsn! {
                     Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
@@ -124,9 +124,9 @@ fn generate_map(
                 });
             }
 
-            if location == 5 {
+            if tile.ground == GroundTile::Conveyor {
                 // conveyor belt
-                let this_orientation = world_map.stuff_orientation[i][j];
+                let this_orientation = world_map.orientation[i][j];
                 let direction = match this_orientation {
                     1 => Direction::North,
                     2 => Direction::West,
@@ -165,9 +165,9 @@ fn generate_map(
                 });
             }
 
-            if location == 6 {
+            if tile.ground == GroundTile::ArrowBlock {
                 // arrow block
-                let this_orientation = world_map.stuff_orientation[i][j];
+                let this_orientation = world_map.orientation[i][j];
                 let direction = match this_orientation {
                     1 => Direction::North,
                     2 => Direction::West,
@@ -207,9 +207,9 @@ fn generate_map(
             }
         }
     }
-    for (i, row) in world_map.stuff.iter().enumerate() {
-        for (j, &location) in row.iter().enumerate() {
-            if location == 2 {
+    for (i, row) in world_map.tiles.iter().enumerate() {
+        for (j, tile) in row.iter().enumerate() {
+            if tile.stuff == StuffTile::PressurePlate {
                 commands.spawn_scene(bsn! {
                     /*Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
                     MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(255, 100, 100)))*/
@@ -223,9 +223,9 @@ fn generate_map(
                     PressurePlate
                 });
             }
-            if location == 3 {
+            if tile.stuff == StuffTile::Bridge {
                 let grid_location = uvec2(i as u32, j as u32);
-                let Some(segment) = bridge_segment(&world_map.stuff, i, j) else {
+                let Some(segment) = bridge_segment(&world_map.tiles, i, j) else {
                     warn!("Bridge at ({i}, {j}) has no neighboring bridge tile");
                     continue;
                 };
@@ -262,16 +262,29 @@ fn generate_map(
                         commands.spawn_scene(bridge_end(grid_location, Quat::IDENTITY));
                     }
                     BridgeSegment::RightEnd => {
-                        commands.spawn_scene(bridge_end(
-                            grid_location,
-                            Quat::from_rotation_y(PI),
-                        ));
+                        commands.spawn_scene(bridge_end(grid_location, Quat::from_rotation_y(PI)));
                     }
                 }
             }
-            if location == 4 {
+            if tile.stuff == StuffTile::Altar {
+                let location = uvec2(i as u32, j as u32);
+                let Some(altar) = world_map.altars.get(&location) else {
+                    error!("Altar at ({i}, {j}) has no action in map.json");
+                    continue;
+                };
+
+                commands.spawn_scene(bsn! {
+                    Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
+                    MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(168, 73, 255)))
+                    Transform::from_xyz((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
+                    GridLocation(vec3(i as f32, 0.0, j as f32))
+                    template_value(altar.clone())
+                });
+                obstructed_set.0.remove(&uvec3(location.x, 0, location.y));
+            }
+            if tile.stuff == StuffTile::Gate {
                 // gate
-                let this_orientation = world_map.stuff_orientation[i][j];
+                let this_orientation = world_map.orientation[i][j];
                 commands.spawn_scene(bsn! {
                     template(|ctx| {
                         Ok(WorldAssetRoot(ctx.resource::<AssetServer>().load(
@@ -324,18 +337,6 @@ fn generate_map(
             TimerBank::new(slots, &world_map.timers),
         ));
     }
-    for (location, altar) in world_map.altars.iter() {
-        let location = location.clone();
-        // altar
-        commands.spawn_scene(bsn! {
-            Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
-            MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(168, 73, 255)))
-            Transform::from_xyz((location.x as f32) * GRID_SIZE.x, -5.0, (location.y as f32) * GRID_SIZE.y)
-            GridLocation(vec3(location.x as f32, 0.0, location.y as f32))
-            template_value(altar.clone())
-        });
-        obstructed_set.0.remove(&uvec3(location.x, 0, location.y));
-    }
 }
 fn bridge_middle(grid_location: UVec2, rotation: Quat) -> impl Scene {
     bsn! {
@@ -374,7 +375,7 @@ enum BridgeSegment {
     RightEnd,
 }
 
-fn bridge_segment(layer: &MapLayer, i: usize, j: usize) -> Option<BridgeSegment> {
+fn bridge_segment(layer: &TileLayer, i: usize, j: usize) -> Option<BridgeSegment> {
     let up = is_bridge(layer, i as isize, j as isize - 1);
     let down = is_bridge(layer, i as isize, j as isize + 1);
     let left = is_bridge(layer, i as isize - 1, j as isize);
@@ -397,7 +398,7 @@ fn bridge_segment(layer: &MapLayer, i: usize, j: usize) -> Option<BridgeSegment>
     }
 }
 
-fn is_bridge(layer: &MapLayer, i: isize, j: isize) -> bool {
+fn is_bridge(layer: &TileLayer, i: isize, j: isize) -> bool {
     if i < 0 || j < 0 {
         return false;
     }
@@ -405,5 +406,5 @@ fn is_bridge(layer: &MapLayer, i: isize, j: isize) -> bool {
     layer
         .get(i as usize)
         .and_then(|row| row.get(j as usize))
-        .is_some_and(|location| *location == 3)
+        .is_some_and(|tile| tile.stuff == StuffTile::Bridge)
 }

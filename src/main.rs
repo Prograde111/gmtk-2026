@@ -13,6 +13,7 @@ pub mod altar_ui;
 pub mod altar;
 pub mod conveyor_belt;
 pub mod music;
+pub mod map_json;
 
 use std::collections::HashSet;
 use crate::ecs::{CompletedTurn, DebugMode, ObstructedSet, SignalLayers, SignalSystems, TurnCounter};
@@ -25,6 +26,7 @@ use crate::activated_periodic_timer::activated_periodic_timer_plugin;
 use crate::conveyor_belt::conveyor_belt_plugin;
 use crate::gate::gate_plugin;
 use crate::global_periodic_timer::global_periodic_timer_plugin;
+use crate::map_json::MapJson;
 use crate::on_turn_timer::on_turn_timer_plugin;
 use crate::pressure_plate::pressure_plate_plugin;
 use crate::signal_extension_timer::signal_extension_timer_plugin;
@@ -40,13 +42,18 @@ pub const ANIMATION_LENGTH: f32 = 0.25;
 
 fn main() {
     let mut signal_layers = SignalLayers(vec![false]);
-    let world_map = load_world_map(&mut signal_layers).expect("failed to load world map");
+
+    let map_json = include_bytes!("../assets/maps/map.json").as_ref();
+    let map_json: MapJson = serde_json::from_reader(map_json).unwrap();
+
+    let world_map = load_world_map(&map_json, &mut signal_layers).expect("failed to load world map");
     let debug_mode = std::env::args().any(|argument| argument == "--debug");
 
     println!("Generated signal layers: {:?}", signal_layers);
 
     App::new()
         .add_plugins(DefaultPlugins)
+        .insert_resource(map_json)
         .insert_resource(DebugMode(debug_mode))
         .insert_resource(signal_layers)
         .insert_resource(world_map)

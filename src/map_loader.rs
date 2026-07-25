@@ -1,8 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use bevy::math::{uvec2, UVec2};
 use bevy::prelude::Resource;
 use eyre::eyre;
-use image::{Pixel, RgbaImage};
+use image::RgbaImage;
 use crate::ecs::SignalLayers;
+use crate::map_json::{MapJson, Signal, Timer};
 
 pub const MAP_WIDTH: usize = 32;
 pub const MAP_HEIGHT: usize = 32;
@@ -13,11 +15,11 @@ pub struct WorldMap {
     pub ground: MapLayer,
     pub stuff: MapLayer,
     pub stuff_orientation: MapLayer,
-    pub signals: MapLayer,
-    pub timer: MapLayer,
+    pub signals: HashMap<UVec2, Signal>,
+    pub timers: HashMap<UVec2, Timer>,
 }
 
-pub fn load_world_map(signal_layers: &mut SignalLayers) -> Result<WorldMap, eyre::Error> {
+pub fn load_world_map(map_json: &MapJson, signal_layers: &mut SignalLayers) -> Result<WorldMap, eyre::Error> {
     let mut regular_color_mapping = HashMap::new();
     regular_color_mapping.insert([255, 255, 255, 255], 1); // ground
     regular_color_mapping.insert([255, 0, 0, 255], 2); // pressure plate
@@ -31,12 +33,27 @@ pub fn load_world_map(signal_layers: &mut SignalLayers) -> Result<WorldMap, eyre
     orientation_mapping.insert([255, 255, 0, 255], 2); // west
     orientation_mapping.insert([255, 0, 255, 255], 3); // south
     orientation_mapping.insert([0, 0, 0, 255], 4); // east
+
+    let mut signals = HashMap::new();
+    let mut timers = HashMap::new();
+    let mut current_signals = HashSet::new();
+    for element in map_json.elements.clone() {
+        if current_signals.get(&element.signal.layer).is_none() {
+            current_signals.insert(element.signal.layer);
+            signal_layers.0.push(false);
+        }
+        signals.insert(uvec2(element.position[0], element.position[1]), element.signal);
+
+        if let Some(timer) = element.timer {
+            timers.insert(uvec2(element.position[0], element.position[1]), timer);
+        }
+    }
     Ok(WorldMap {
         ground: load_layer(include_bytes!("../assets/maps/ground.png"), "ground", regular_color_mapping.clone())?,
         stuff: load_layer(include_bytes!("../assets/maps/stuff.png"), "stuff", regular_color_mapping)?,
         stuff_orientation: load_layer(include_bytes!("../assets/maps/stuff_orientation.png"), "stuff_orientation", orientation_mapping)?,
-        signals: load_signals_layer(include_bytes!("../assets/maps/signals.png"), "signals", signal_layers)?,
-        timer: load_timer_layer(include_bytes!("../assets/maps/timer.png"), "timer")?,
+        signals,
+        timers,
     })
 }
 
@@ -58,50 +75,6 @@ fn load_layer(bytes: &[u8], layer: &'static str, color_mapping: HashMap<[u8; 4],
             }
         }
     }
-    Ok(output)
-}
-fn load_signals_layer(bytes: &[u8], layer: &'static str, signal_layers: &mut SignalLayers) -> Result<MapLayer, eyre::Error> {
-    let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?
-        .into_rgba8();
-    check_dimensions(&image, layer)?;
-    let mut output = [[0; MAP_HEIGHT]; MAP_WIDTH];
-    let mut current_signal: u32 = 1;
-    let mut signal_color_map = HashMap::new();
-    for (x, y, pixel) in image.enumerate_pixels() {
-        if pixel.alpha() == 0 { continue }
-        if let Some(signal_id) = signal_color_map.get(pixel) {
-            output[x as usize][y as usize] = *signal_id;
-        } else {
-            signal_layers.0.push(false);
-            signal_color_map.insert(pixel, current_signal);
-            output[x as usize][y as usize] = current_signal;
-            current_signal += 1;
-        }
-    }
-
-    Ok(output)
-}
-fn load_timer_layer(bytes: &[u8], layer: &'static str) -> Result<MapLayer, eyre::Error> {
-    let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)?
-        .into_rgba8();
-    check_dimensions(&image, layer)?;
-    let mut output = [[0; MAP_HEIGHT]; MAP_WIDTH];
-
-    for (x, y, pixel) in image.enumerate_pixels() {
-        if pixel.alpha() == 0 { continue }
-        let blue = pixel.0[2] as u32;
-        let timer_type = match blue {
-            100 => 1, // signal extension
-            150 => 2, // periodic after activation
-            255 => 3, // global periodic
-            60 => 4, // after turn
-            0 => 5, // until turn
-            _ => 0
-        };
-        let length = pixel.0[0] as u32;
-        output[x as usize][y as usize] = timer_type << 8 | length;
-    }
-
     Ok(output)
 }
 

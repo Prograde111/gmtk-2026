@@ -1,0 +1,76 @@
+{
+  "elements": [
+    {
+      "position": [22, 13],
+      "signal": { "layer": 1 }
+    },
+    {
+      "position": [22, 14],
+      "signal": { "layer": 1 }
+    },
+    {
+      "position": [24, 16],
+      "signal": { "layer": 1 },
+      "timer": {
+        "timer_type": "GlobalPeriodic",
+        "length": 2
+      }
+    },
+    {
+      "position": [25, 13],
+      "signal": { "layer": 2 }
+    },
+    {
+      "position": [25, 14],
+      "signal": { "layer": 2 }
+    },
+    {
+      "position": [26, 16],
+      "signal": { "layer": 2 },
+      "timer": {
+        "timer_type": "SignalExtension",
+        "length": 3
+      }
+    },
+    {
+      "position": [18, 16],
+      "signal": { "layer": 3 }
+    },
+    {
+      "position": [18, 17],
+      "signal": { "layer": 3 },
+      "timer": {
+        "timer_type": "AfterTurn",
+        "length": 3
+      }
+    },
+    {
+      "position": [18, 8],
+      "signal": { "layer": 4 },
+      "timer": {
+        "timer_type": "UntilTurn",
+        "length": 3
+      }
+    },
+    {
+      "position": [18, 9],
+      "signal": { "layer": 4 }
+    },
+    {
+      "position": [21, 10],
+      "signal": { "layer": 5 }
+    },
+    {
+      "position": [22, 10],
+      "signal": { "layer": 5 }
+    },
+    {
+      "position": [19, 13],
+      "signal": { "layer": 5 },
+      "timer": {
+        "timer_type": "ActivatedPeriodic",
+        "length": 2
+      }
+    }
+  ]
+}

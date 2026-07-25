@@ -5,6 +5,7 @@ use crate::{GRID_SIZE, map_loader::WorldMap};
 use bevy::camera::ScalingMode;
 use bevy::prelude::*;
 use std::f32::consts::PI;
+use crate::map_json::Signal;
 use crate::map_loader::MapLayer;
 
 pub fn game_scene_plugin(app: &mut App) {
@@ -114,18 +115,6 @@ fn generate_map(
                     Transform::from_xyz((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
                 });
             }
-            if location == 2 {
-                // pressure plate interacts with signals, check for that
-                let this_signal = world_map.signals[i][j];
-                let entity = commands.spawn_scene(bsn! {
-                    Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
-                    MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(255, 100, 100)))
-                    Transform::from_xyz((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
-                    GridLocation(vec3(i as f32, 0.0, j as f32))
-                    PressurePlate
-                    SignalAccess( { this_signal as usize } )
-                });
-            }
             if location == 5 {
                 // altar
                 let entity = commands.spawn_scene(bsn! {
@@ -178,6 +167,23 @@ fn generate_map(
     for (i, row) in world_map.stuff.iter().enumerate() {
         for (j, &location) in row.iter().enumerate() {
             if already_processed.contains(&uvec2(i as u32, j as u32)) { continue }
+            if location == 2 {
+                // pressure plate interacts with signals, check for that
+                let this_signal = world_map.signals.get(&uvec2(i as u32, j as u32)).cloned().unwrap_or_default();
+                let entity = commands.spawn_scene(bsn! {
+                    /*Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
+                    MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(255, 100, 100)))*/
+                    template(|ctx| {
+                        Ok(WorldAssetRoot(ctx.resource::<AssetServer>().load(
+                            GltfAssetLabel::Scene(0).from_asset("models/pressure_plate.gltf")
+                        )))
+                    })
+                    Transform::from_xyz((i as f32) * GRID_SIZE.x, -1.0, (j as f32) * GRID_SIZE.y)
+                    GridLocation(vec3(i as f32, 0.0, j as f32))
+                    PressurePlate
+                    SignalAccess( { this_signal.layer as usize } )
+                });
+            }
             if location == 3 {
                 // bridge
                 let mut bridge_pieces = Vec::new();
@@ -210,7 +216,7 @@ fn generate_map(
             }
             if location == 4 {
                 // gate
-                let this_signal = world_map.signals[i][j];
+                let this_signal = world_map.signals.get(&uvec2(i as u32, j as u32)).cloned().unwrap_or_default();
                 let this_orientation = world_map.stuff_orientation[i][j];
                 commands.spawn_scene(bsn! {
                     template(|ctx| {
@@ -229,7 +235,7 @@ fn generate_map(
                             GltfAssetLabel::Scene(0).from_asset("models/gate/gate.gltf")
                         )))
                     })
-                    SignalAccess( { this_signal as usize } )
+                    SignalAccess( { this_signal.layer as usize } )
                     GridLocation(vec3(i as f32, 0.0, j as f32))
                     Transform {
                         translation: vec3((i as f32) * GRID_SIZE.x, 0.0, (j as f32) * GRID_SIZE.y)
@@ -264,43 +270,38 @@ fn generate_map(
             }
         }
     }
-    for (i, row) in world_map.timer.iter().enumerate() {
-        for (j, &location) in row.iter().enumerate() {
-            let timer_type = location >> 8;
-            let length = location & 0b1111_1111;
-
-            let this_signal = world_map.signals[i][j];
-            if timer_type == 1 {
-            commands.spawn_scene(bsn! {
-                    Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
-                    SignalExtensionTimer { length, turn_tick: length, is_triggered: false }
-                    SignalAccess({ this_signal as usize })
-                });
-            } else if timer_type == 2 {
-                commands.spawn_scene(bsn! {
-                    Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
-                    ActivatedPeriodicTimer { period: length, turn_tick: length, is_triggered: false }
-                    SignalAccess({ this_signal as usize })
-                });
-            } else if timer_type == 3 {
-                commands.spawn_scene(bsn! {
-                    Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
-                    GlobalPeriodicTimer { period: length, turn_tick: length }
-                    SignalAccess({ this_signal as usize })
-                });
-            } else if timer_type == 4 {
-                commands.spawn_scene(bsn! {
-                    Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
-                    AfterTurnTimer { trigger_turn: length, turn_tick: 0 }
-                    SignalAccess({ this_signal as usize })
-                });
-            } else if timer_type == 5 {
-                commands.spawn_scene(bsn! {
-                    Transform::from_xyz(i as f32 * GRID_SIZE.x, 3.0, j as f32 * GRID_SIZE.y)
-                    UntilTurnTimer { trigger_turn: length, turn_tick: 0 }
-                    SignalAccess({ this_signal as usize })
-                });
-            }
+    for (location, timer) in world_map.timers.iter() {
+        let this_signal = world_map.signals.get(&location).cloned().unwrap_or_default();
+        if timer.timer_type == "SignalExtension" {
+            commands.spawn((
+                    Transform::from_xyz(location.x as f32 * GRID_SIZE.x, 3.0, location.y as f32 * GRID_SIZE.y),
+                    SignalExtensionTimer { length: { timer.length }, turn_tick: { timer.length }, is_triggered: false },
+                    SignalAccess({ this_signal.layer as usize }),
+            ));
+        } else if timer.timer_type == "ActivatedPeriodic" {
+            commands.spawn((
+                Transform::from_xyz(location.x as f32 * GRID_SIZE.x, 3.0, location.y as f32 * GRID_SIZE.y),
+                ActivatedPeriodicTimer { period: { timer.length }, turn_tick: { timer.length }, is_triggered: false },
+                SignalAccess({ this_signal.layer as usize }),
+            ));
+        } else if timer.timer_type == "GlobalPeriodic" {
+            commands.spawn((
+                Transform::from_xyz(location.x as f32 * GRID_SIZE.x, 3.0, location.y as f32 * GRID_SIZE.y),
+                GlobalPeriodicTimer { period: { timer.length }, turn_tick: { timer.length } },
+                SignalAccess({ this_signal.layer as usize }),
+            ));
+        } else if timer.timer_type == "AfterTurn" {
+            commands.spawn((
+                Transform::from_xyz(location.x as f32 * GRID_SIZE.x, 3.0, location.y as f32 * GRID_SIZE.y),
+                AfterTurnTimer { trigger_turn: { timer.length }, turn_tick: 0 },
+                SignalAccess({ this_signal.layer as usize }),
+            ));
+        } else if timer.timer_type == "UntilTurn" {
+            commands.spawn((
+                Transform::from_xyz(location.x as f32 * GRID_SIZE.x, 3.0, location.y as f32 * GRID_SIZE.y),
+                UntilTurnTimer { trigger_turn: { timer.length }, turn_tick: 0 },
+                SignalAccess({ this_signal.layer as usize }),
+            ));
         }
     }
 }

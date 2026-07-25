@@ -84,6 +84,12 @@ enum TimerRuntime {
         remaining: u32,
         output: bool,
     },
+    OneShot {
+        running: bool,
+        remaining: u32,
+        pulse_remaining: u32,
+        output: bool,
+    },
 }
 
 impl TimerInstance {
@@ -113,6 +119,16 @@ impl TimerInstance {
                     output: initial,
                 }
             }
+            TimerTemplate::OneShot {
+                turns,
+                pulse_turns,
+                initial,
+            } => TimerRuntime::OneShot {
+                running: initial,
+                remaining: turns,
+                pulse_remaining: pulse_turns,
+                output: false,
+            },
         }
     }
 
@@ -120,7 +136,8 @@ impl TimerInstance {
         match self.runtime {
             TimerRuntime::Periodic { output, .. }
             | TimerRuntime::AfterCountdown { output, .. }
-            | TimerRuntime::DuringCountdown { output, .. } => output,
+            | TimerRuntime::DuringCountdown { output, .. }
+            | TimerRuntime::OneShot { output, .. } => output,
         }
     }
 
@@ -180,6 +197,35 @@ impl TimerInstance {
                     }
                 } else {
                     *output = false;
+                }
+            }
+            (
+                TimerTemplate::OneShot { .. },
+                TimerRuntime::OneShot {
+                    running,
+                    remaining,
+                    pulse_remaining,
+                    output,
+                },
+            ) => {
+                *output = false;
+                if !*running {
+                    return;
+                }
+
+                if *remaining > 0 {
+                    *remaining -= 1;
+                    if *remaining > 0 {
+                        return;
+                    }
+                }
+
+                if *pulse_remaining > 0 {
+                    *output = true;
+                    *pulse_remaining -= 1;
+                }
+                if *pulse_remaining == 0 {
+                    *running = false;
                 }
             }
             _ => unreachable!("timer runtime must match its template"),

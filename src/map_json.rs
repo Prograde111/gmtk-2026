@@ -53,6 +53,13 @@ pub enum TimerTemplate {
         #[serde(default)]
         initial: bool,
     },
+    OneShot {
+        turns: u32,
+        #[serde(default = "one")]
+        pulse_turns: u32,
+        #[serde(default)]
+        initial: bool,
+    },
 }
 
 const fn one() -> u32 {

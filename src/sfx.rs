@@ -1,4 +1,9 @@
+use crate::ecs::{GridLocation, Player};
+use bevy::audio::Volume;
 use bevy::prelude::*;
+
+/// max distance from the player that sfx play
+pub const SFX_HEARING_RADIUS: f32 = 7.0;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Sfx {
@@ -11,7 +16,19 @@ pub enum Sfx {
 }
 
 #[derive(Message, Clone, Copy, Debug)]
-pub struct PlaySfx(pub Sfx);
+pub struct PlaySfx {
+    pub sfx: Sfx,
+    pub position: Vec3,
+}
+
+impl PlaySfx {
+    pub fn at(sfx: Sfx, location: &GridLocation) -> Self {
+        Self {
+            sfx,
+            position: location.to_world_space(),
+        }
+    }
+}
 
 #[derive(SystemSet, Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SfxSystems {
@@ -64,12 +81,20 @@ fn load_sfx(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn play_sfx(
     mut commands: Commands,
     assets: Res<SfxAssets>,
+    player: Single<&GridLocation, With<Player>>,
     mut requested_sfx: MessageReader<PlaySfx>,
 ) {
+    let listener_position = player.to_world_space();
     for request in requested_sfx.read() {
+        let distance = listener_position.distance(request.position);
+        if distance >= SFX_HEARING_RADIUS {
+            continue;
+        }
+
+        let gain = 1.0 - distance / SFX_HEARING_RADIUS;
         commands.spawn((
-            AudioPlayer::new(assets.get(request.0)),
-            PlaybackSettings::DESPAWN,
+            AudioPlayer::new(assets.get(request.sfx)),
+            PlaybackSettings::DESPAWN.with_volume(Volume::Linear(gain)),
         ));
     }
 }

@@ -22,7 +22,7 @@ pub fn conveyor_belt_move(
                 let translation_vector = belt_orientation.0.to_vec_direction() * vec3(GRID_SIZE.x, 0.0, GRID_SIZE.y);
                 player_transform.translation += translation_vector;
                 player_location.0 += belt_orientation.0.to_grid_location_offset();
-                play_sfx.write(PlaySfx(Sfx::Conveyor));
+                play_sfx.write(PlaySfx::at(Sfx::Conveyor, belt_location));
                 break;
             }
         }

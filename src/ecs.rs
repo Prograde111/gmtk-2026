@@ -94,6 +94,11 @@ impl AvailableActions {
 
 #[derive(Component, Clone, Default, Debug)]
 pub struct Arrow;
+#[derive(Component, Clone, Debug, Default)]
+pub struct ArrowBlock {
+    pub initial_orientation: Direction,
+    pub initial_rotation: Quat,
+}
 #[derive(Component, Clone, Default, Debug)]
 pub struct CameraRig;
 
@@ -146,7 +151,7 @@ pub struct CompletedTurn {
     pub new_location: UVec3,
 }
 
-#[derive(Copy, Clone, Default, Debug)]
+#[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
 pub enum Direction {
     #[default]
     North,

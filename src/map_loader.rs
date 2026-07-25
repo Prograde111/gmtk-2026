@@ -32,6 +32,7 @@ pub fn load_world_map(map_json: &MapJson) -> Result<WorldMap, eyre::Error> {
     regular_color_mapping.insert([154, 114, 46, 255], 3); // bridge
     regular_color_mapping.insert([0, 38, 255, 255], 4); // gate
     regular_color_mapping.insert([99, 99, 99, 255], 5); // conveyor belt
+    regular_color_mapping.insert([0, 255, 0, 255], 6); // arrow block
 
     let mut orientation_mapping = HashMap::new();
     orientation_mapping.insert([0, 255, 255, 255], 1); // north

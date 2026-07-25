@@ -1,7 +1,8 @@
 use crate::MAX_TURN_COUNT;
 use crate::ecs::{
-    Altar, Arrow, AvailableActions, CameraRig, Direction, Gate, GridLocation, InitialObstructedSet,
-    Moving, ObstructedSet, Orientation, Player, PlayerAction, TurnCountText, TurnCounter,
+    Altar, Arrow, ArrowBlock, AvailableActions, CameraRig, Direction, Gate, GridLocation,
+    InitialObstructedSet, Moving, ObstructedSet, Orientation, Player, PlayerAction, TurnCountText,
+    TurnCounter,
 };
 use crate::movement::CameraTurn;
 use crate::signal_logic::{SwitchStates, TimerBank};
@@ -237,8 +238,18 @@ fn reset_level(
     mut reset: MessageReader<ResetGame>,
     initial_obstructions: Res<InitialObstructedSet>,
     mut obstructed_set: ResMut<ObstructedSet>,
-    mut altars: Query<(&GridLocation, &mut Transform), With<Altar>>,
-    mut gates: Query<(&mut Gate, &mut Transform), Without<Altar>>,
+    mut altars: Query<
+        (&GridLocation, &mut Transform),
+        (With<Altar>, Without<Gate>, Without<ArrowBlock>),
+    >,
+    mut gates: Query<
+        (&mut Gate, &mut Transform),
+        (With<Gate>, Without<Altar>, Without<ArrowBlock>),
+    >,
+    mut arrow_blocks: Query<
+        (&ArrowBlock, &mut Orientation, &mut Transform),
+        (Without<Altar>, Without<Gate>),
+    >,
 ) {
     if reset.read().next().is_none() {
         return;
@@ -251,6 +262,10 @@ fn reset_level(
     for (mut gate, mut transform) in &mut gates {
         *gate = Gate::Closed;
         transform.translation.y = 0.0;
+    }
+    for (arrow, mut orientation, mut transform) in &mut arrow_blocks {
+        orientation.0 = arrow.initial_orientation;
+        transform.rotation = arrow.initial_rotation;
     }
 }
 

@@ -395,6 +395,22 @@ pub fn place_player(
     transform.rotation = rotation;
 }
 
+/// face toward (for arrows)
+pub fn face_player(transform: &mut Transform, orientation: &mut Orientation, target: Direction) {
+    let turn = if orientation.0 == target {
+        return;
+    } else if orientation.0.turn_right() == target {
+        Direction::Right
+    } else if orientation.0.turn_left() == target {
+        Direction::Left
+    } else {
+        Direction::Around
+    };
+
+    let initial_rotation = transform.rotation;
+    rotate_player(transform, orientation, turn, initial_rotation, 1.0);
+}
+
 /// roll (like wasd)
 pub fn roll_player(
     transform: &mut Transform,

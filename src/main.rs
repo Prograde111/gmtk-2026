@@ -1,5 +1,6 @@
 pub mod altar;
 pub mod altar_ui;
+pub mod arrow_block;
 pub mod conveyor_belt;
 pub mod ecs;
 mod game_scene;
@@ -15,6 +16,7 @@ pub mod story;
 pub mod ui;
 
 use crate::altar::altar_plugin;
+use crate::arrow_block::arrow_block_plugin;
 use crate::conveyor_belt::conveyor_belt_plugin;
 use crate::ecs::{CompletedTurn, DebugMode, ObstructedSet, SignalSystems, TurnCounter};
 use crate::game_scene::game_scene_plugin;
@@ -61,6 +63,7 @@ fn main() {
         .add_plugins(pressure_plate_plugin)
         .add_plugins(gate_plugin)
         .add_plugins(conveyor_belt_plugin)
+        .add_plugins(arrow_block_plugin)
         .add_plugins(altar_plugin)
         .add_plugins(signal_logic_plugin)
         .add_plugins(music_plugin)

@@ -1,5 +1,5 @@
 use crate::ecs::{
-    Arrow, AvailableActions, CameraRig, ConveyorBelt, Direction, Gate, GridLocation,
+    Arrow, ArrowBlock, AvailableActions, CameraRig, ConveyorBelt, Direction, Gate, GridLocation,
     InitialObstructedSet, ObstructedSet, Orientation, Player, PressurePlate,
 };
 use crate::map_loader::MapLayer;
@@ -157,6 +157,47 @@ fn generate_map(
                         (
                             Mesh3d(asset_value(Cone::new(0.2, 0.6)))
                             MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(168, 73, 255)))
+                            Transform {
+                                translation: vec3(0.0, 5.0, 0.0)
+                                rotation: Quat::from_euler(EulerRot::YXZ, -PI/2.0, -PI/2.0, 0.0),
+                            }
+                        )
+                    ]
+                });
+            }
+
+            if location == 6 {
+                // arrow block
+                let this_orientation = world_map.stuff_orientation[i][j];
+                let direction = match this_orientation {
+                    1 => Direction::North,
+                    2 => Direction::West,
+                    3 => Direction::South,
+                    4 => Direction::East,
+                    _ => {
+                        error!("Found an arrow block at {}, {} with no orientation", i, j);
+                        Direction::North
+                    }
+                };
+                let rotation = Quat::from_rotation_y(this_orientation as f32 * PI / 2.0);
+
+                commands.spawn_scene(bsn! {
+                    Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
+                    MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(0, 255, 0)))
+                    Transform {
+                        translation: vec3((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
+                        rotation,
+                    }
+                    GridLocation(vec3(i as f32, 0.0, j as f32))
+                    ArrowBlock {
+                        initial_orientation: direction,
+                        initial_rotation: rotation,
+                    }
+                    Orientation(direction)
+                    Children [
+                        (
+                            Mesh3d(asset_value(Cone::new(0.2, 0.6)))
+                            MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(255, 255, 255)))
                             Transform {
                                 translation: vec3(0.0, 5.0, 0.0)
                                 rotation: Quat::from_euler(EulerRot::YXZ, -PI/2.0, -PI/2.0, 0.0),

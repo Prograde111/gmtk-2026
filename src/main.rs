@@ -12,6 +12,7 @@ pub mod on_turn_timer;
 pub mod altar_ui;
 pub mod altar;
 pub mod conveyor_belt;
+pub mod music;
 pub mod map_json;
 
 use std::collections::HashSet;
@@ -29,6 +30,7 @@ use crate::map_json::MapJson;
 use crate::on_turn_timer::on_turn_timer_plugin;
 use crate::pressure_plate::pressure_plate_plugin;
 use crate::signal_extension_timer::signal_extension_timer_plugin;
+use crate::music::music_plugin;
 
 pub const MAX_TURN_COUNT: u32 = 1000;
 
@@ -40,10 +42,10 @@ pub const ANIMATION_LENGTH: f32 = 0.25;
 
 fn main() {
     let mut signal_layers = SignalLayers(vec![false]);
-    
+
     let map_json = include_bytes!("../assets/maps/map.json").as_ref();
     let map_json: MapJson = serde_json::from_reader(map_json).unwrap();
-    
+
     let world_map = load_world_map(&map_json, &mut signal_layers).expect("failed to load world map");
     let debug_mode = std::env::args().any(|argument| argument == "--debug");
 
@@ -69,6 +71,7 @@ fn main() {
         .add_plugins(activated_periodic_timer_plugin)
         .add_plugins(signal_extension_timer_plugin)
         .add_plugins(on_turn_timer_plugin)
+        .add_plugins(music_plugin)
         .add_systems(Update, clear_signal_layers.in_set(SignalSystems::Clear).after(movement::do_movement))
         .configure_sets(Update, (SignalSystems::Clear, SignalSystems::Write, SignalSystems::Timer, SignalSystems::Read).chain())
         .run();

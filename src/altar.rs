@@ -1,23 +1,33 @@
 use bevy::prelude::*;
-use crate::ecs::{Altar, AvailableActions, CompletedTurn, GridLocation, ObstructedSet, Player, SignalSystems};
+use crate::ecs::{Altar, AvailableActions, CompletedTurn, GridLocation, ObstructedSet, Player};
+use crate::story::{GamePhase, SkillSacrificed, StorySystems};
 use crate::{GRID_SIZE, PLAYER_SIZE};
 
 pub fn altar_plugin(app: &mut App) {
-    app.add_systems(Update, detect_player);
+    app.add_systems(
+        Update,
+        detect_player
+            .run_if(in_state(GamePhase::Playing))
+            .before(StorySystems::Events),
+    );
 }
 
 pub fn detect_player(
-    mut player: Single<(&mut GridLocation, &mut AvailableActions, &mut Transform), With<Player>>,
+    player: Single<(&mut GridLocation, &mut AvailableActions, &mut Transform), With<Player>>,
     mut altar_query: Query<(&GridLocation, &Altar, &mut Transform), Without<Player>>,
     mut obstructed_set: ResMut<ObstructedSet>,
     mut completed_turns: MessageReader<CompletedTurn>,
+    mut sacrifices: MessageWriter<SkillSacrificed>,
 ) {
     let (mut player_location, mut available_actions, mut player_transform) = player.into_inner();
     for completed_turn in completed_turns.read() {
         for (altar_location, altar, mut altar_transform) in altar_query.iter_mut() {
             if altar_location.0 == player_location.0 {
                 // we're on the altar, time to delete an action
-                available_actions.remove(altar.0);
+                if !available_actions.remove(altar.0) {
+                    continue;
+                }
+                sacrifices.write(SkillSacrificed(altar.0));
                 info!("Removed action {:?}", altar.0.key_code());
                 // now move back
                 player_location.0 = completed_turn.old_location.as_vec3();

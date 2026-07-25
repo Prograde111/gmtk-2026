@@ -14,6 +14,7 @@ pub mod altar;
 pub mod conveyor_belt;
 pub mod music;
 pub mod sfx;
+pub mod story;
 pub mod map_json;
 
 use std::collections::HashSet;
@@ -34,6 +35,7 @@ use crate::pressure_plate::pressure_plate_plugin;
 use crate::signal_extension_timer::signal_extension_timer_plugin;
 use crate::music::music_plugin;
 use crate::sfx::sfx_plugin;
+use crate::story::story_plugin;
 
 pub const MAX_TURN_COUNT: u32 = 1000;
 
@@ -77,6 +79,7 @@ fn main() {
         .add_plugins(on_turn_timer_plugin)
         .add_plugins(music_plugin)
         .add_plugins(sfx_plugin)
+        .add_plugins(story_plugin)
         .add_systems(Update, clear_signal_layers.in_set(SignalSystems::Clear).after(movement::do_movement))
         .configure_sets(Update, (SignalSystems::Clear, SignalSystems::Write, SignalSystems::Timer, SignalSystems::Read).chain())
         .run();

@@ -89,8 +89,8 @@ impl AvailableActions {
             true
         }
     }
-    pub fn remove(&mut self, action: PlayerAction) {
-        self.0.remove(&action);
+    pub fn remove(&mut self, action: PlayerAction) -> bool {
+        self.0.remove(&action)
     }
 }
 
@@ -111,6 +111,10 @@ impl GridLocation {
 /// a set of locations in the grid that the player can't go in
 #[derive(Resource, Clone, Default, Debug)]
 pub struct ObstructedSet(pub HashSet<UVec3>);
+
+/// initial ObstructedSet to reset to
+#[derive(Resource, Clone, Default, Debug)]
+pub struct InitialObstructedSet(pub HashSet<UVec3>);
 //#[derive(Resource, Clone, Default, Debug)]
 //pub struct SpecialTileSet(pub HashMap<UVec3, (SpecialTileType, Entity)>);
 #[derive(Resource, Clone, Default, Debug)]

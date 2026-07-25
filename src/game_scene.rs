@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::ecs::{ActivatedPeriodicTimer, AfterTurnTimer, Altar, Arrow, AvailableActions, CameraRig, ConveyorBelt, Direction, Gate, GlobalPeriodicTimer, GridLocation, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess, SignalExtensionTimer, UntilTurnTimer};
+use crate::ecs::{ActivatedPeriodicTimer, AfterTurnTimer, Altar, Arrow, AvailableActions, CameraRig, ConveyorBelt, Direction, Gate, GlobalPeriodicTimer, GridLocation, InitialObstructedSet, ObstructedSet, Orientation, Player, PressurePlate, SignalAccess, SignalExtensionTimer, UntilTurnTimer};
 use crate::ui::ui;
 use crate::{GRID_SIZE, map_loader::WorldMap};
 use bevy::camera::ScalingMode;
@@ -10,7 +10,14 @@ use crate::map_loader::MapLayer;
 
 pub fn game_scene_plugin(app: &mut App) {
     app.add_systems(Startup, scene.spawn())
-        .add_systems(Startup, generate_map);
+        .add_systems(Startup, (generate_map, capture_initial_obstructions).chain());
+}
+
+fn capture_initial_obstructions(
+    mut commands: Commands,
+    obstructed_set: Res<ObstructedSet>,
+) {
+    commands.insert_resource(InitialObstructedSet(obstructed_set.0.clone()));
 }
 
 fn scene() -> impl SceneList {
@@ -37,6 +44,7 @@ fn isometric_camera() -> impl Scene {
     bsn! {
         CameraRig
         Transform::default()
+        Visibility::default()
         Children [
             (
                 Camera3d
@@ -62,6 +70,7 @@ fn point_light() -> impl Scene {
 fn player() -> impl Scene {
     bsn! {
         Transform::from_xyz(20.0 * GRID_SIZE.x, 0.5, 12.0 * GRID_SIZE.y)
+        Visibility::default()
         GridLocation(Vec3::new(20.0, 0.0, 12.0))
         Children [
             template(|ctx| {

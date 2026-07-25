@@ -279,264 +279,93 @@ pub fn do_movement(
     if **turn_counter == 0 {
         return;
     }
+
     let (player_entity, mut transform, mut grid_location, moving, mut orientation) =
         player.into_inner();
     let mut arrow_transform = arrow.into_inner();
     let (camera_entity, mut camera_transform, camera_turn) = camera.into_inner();
     let progress = moving.start.elapsed().as_secs_f32() / ANIMATION_LENGTH;
+    let old_location = grid_location.0.as_uvec3();
 
-    let orient_rot = orientation.0.to_rotation();
-    match moving.direction {
-        Direction::North => {
-            // rotates about x axis
-            rotate_around(
-                &mut transform,
-                &moving.initial_rotation,
-                orient_rot * moving.direction.to_pivot(),
-                &Quat::from_axis_angle(orient_rot * Vec3::X, progress * -PI / 2.0),
-                &grid_location,
-            );
-            if progress >= 1.0 {
-                let old_location = grid_location.0.as_uvec3();
-                grid_location.0 += orient_rot * vec3(0.0, 0.0, -1.0);
-                commands.entity(player_entity).remove::<Moving>();
-                transform.translation =
-                    grid_location.to_world_space() + vec3(0.0, PLAYER_SIZE.y / 2.0, 0.0);
-                transform.rotation = Quat::from_axis_angle(orient_rot * Vec3::X, -PI / 2.0)
-                    * moving.initial_rotation;
-
-                **turn_counter -= 1;
-                completed_turn_sender.write(CompletedTurn {
-                    old_rotation: moving.initial_rotation,
-                    old_location,
-                    new_location: grid_location.0.as_uvec3(),
-                });
-            }
-        }
-        Direction::South => {
-            rotate_around(
-                &mut transform,
-                &moving.initial_rotation,
-                orient_rot * moving.direction.to_pivot(),
-                &Quat::from_axis_angle(orient_rot * Vec3::X, progress * PI / 2.0),
-                &grid_location,
-            );
-            if progress >= 1.0 {
-                let old_location = grid_location.0.as_uvec3();
-                grid_location.0 += orient_rot * vec3(0.0, 0.0, 1.0);
-                commands.entity(player_entity).remove::<Moving>();
-                transform.translation =
-                    grid_location.to_world_space() + vec3(0.0, PLAYER_SIZE.y / 2.0, 0.0);
-                transform.rotation =
-                    Quat::from_axis_angle(orient_rot * Vec3::X, PI / 2.0) * moving.initial_rotation;
-
-                **turn_counter -= 1;
-                completed_turn_sender.write(CompletedTurn {
-                    old_rotation: moving.initial_rotation,
-                    old_location,
-                    new_location: grid_location.0.as_uvec3(),
-                });
-            }
-        }
-        Direction::East => {
-            rotate_around(
-                &mut transform,
-                &moving.initial_rotation,
-                orient_rot * moving.direction.to_pivot(),
-                &Quat::from_axis_angle(orient_rot * Vec3::Z, progress * -PI / 2.0),
-                &grid_location,
-            );
-            if progress >= 1.0 {
-                let old_location = grid_location.0.as_uvec3();
-                grid_location.0 += orient_rot * vec3(1.0, 0.0, 0.0);
-                commands.entity(player_entity).remove::<Moving>();
-                transform.translation =
-                    grid_location.to_world_space() + vec3(0.0, PLAYER_SIZE.y / 2.0, 0.0);
-                transform.rotation = Quat::from_axis_angle(orient_rot * Vec3::Z, -PI / 2.0)
-                    * moving.initial_rotation;
-
-                **turn_counter -= 1;
-                completed_turn_sender.write(CompletedTurn {
-                    old_rotation: moving.initial_rotation,
-                    old_location,
-                    new_location: grid_location.0.as_uvec3(),
-                });
-            }
-        }
-        Direction::West => {
-            rotate_around(
-                &mut transform,
-                &moving.initial_rotation,
-                orient_rot * moving.direction.to_pivot(),
-                &Quat::from_axis_angle(orient_rot * Vec3::Z, progress * PI / 2.0),
-                &grid_location,
-            );
-            if progress >= 1.0 {
-                let old_location = grid_location.0.as_uvec3();
-                grid_location.0 += orient_rot * vec3(-1.0, 0.0, 0.0);
-                commands.entity(player_entity).remove::<Moving>();
-                transform.translation =
-                    grid_location.to_world_space() + vec3(0.0, PLAYER_SIZE.y / 2.0, 0.0);
-                transform.rotation =
-                    Quat::from_axis_angle(orient_rot * Vec3::Z, PI / 2.0) * moving.initial_rotation;
-
-                **turn_counter -= 1;
-                completed_turn_sender.write(CompletedTurn {
-                    old_rotation: moving.initial_rotation,
-                    old_location,
-                    new_location: grid_location.0.as_uvec3(),
-                });
-            }
-        }
-        Direction::Left => {
+    let completed = match moving.direction {
+        Direction::North | Direction::East | Direction::South | Direction::West => roll_player(
+            &mut transform,
+            &mut grid_location,
+            &orientation,
+            moving.direction,
+            moving.initial_rotation,
+            progress,
+        ),
+        Direction::SlideLeft => translate_player(
+            &mut transform,
+            &mut grid_location,
+            orientation.0.to_rotation() * Direction::West.to_grid_location_offset(),
+            progress,
+        ),
+        Direction::SlideRight => translate_player(
+            &mut transform,
+            &mut grid_location,
+            orientation.0.to_rotation() * Direction::East.to_grid_location_offset(),
+            progress,
+        ),
+        Direction::Left | Direction::Right | Direction::Around => {
             let Some(camera_turn) = camera_turn else {
                 return;
             };
-            rotate_camera_around_y(&mut camera_transform, camera_turn, progress, true);
-            rotate_around_y(&mut transform, &moving.initial_rotation, progress, true);
-            rotate_around_y(
-                &mut arrow_transform,
-                &orientation.0.to_rotation(),
-                progress,
-                true,
-            );
-            if progress >= 1.0 {
-                commands.entity(player_entity).remove::<Moving>();
-                commands.entity(camera_entity).remove::<CameraTurn>();
-                transform.rotation =
-                    Quat::from_axis_angle(Vec3::Y, PI / 2.0) * moving.initial_rotation;
-                camera_transform.rotation =
-                    Quat::from_axis_angle(Vec3::Y, PI / 2.0) * camera_turn.initial_rotation;
-
-                *orientation = Orientation(orientation.0.turn_left());
-                arrow_transform.rotation = orientation.0.to_rotation();
-
-                **turn_counter -= 1;
-                completed_turn_sender.write(CompletedTurn {
-                    old_rotation: moving.initial_rotation,
-                    old_location: grid_location.0.as_uvec3(),
-                    new_location: grid_location.0.as_uvec3(),
-                });
-            }
-        }
-        Direction::Right => {
-            let Some(camera_turn) = camera_turn else {
-                return;
+            let (turns, positive) = match moving.direction {
+                Direction::Left => (1.0, true),
+                Direction::Right => (1.0, false),
+                Direction::Around => (2.0, false),
+                _ => unreachable!(),
             };
-            rotate_camera_around_y(&mut camera_transform, camera_turn, progress, false);
-            rotate_around_y(&mut transform, &moving.initial_rotation, progress, false);
-            rotate_around_y(
-                &mut arrow_transform,
-                &orientation.0.to_rotation(),
-                progress,
-                false,
-            );
-            if progress >= 1.0 {
-                commands.entity(player_entity).remove::<Moving>();
-                commands.entity(camera_entity).remove::<CameraTurn>();
-                transform.rotation =
-                    Quat::from_axis_angle(Vec3::Y, -PI / 2.0) * moving.initial_rotation;
-                camera_transform.rotation =
-                    Quat::from_axis_angle(Vec3::Y, -PI / 2.0) * camera_turn.initial_rotation;
 
-                *orientation = Orientation(orientation.0.turn_right());
-                arrow_transform.rotation = orientation.0.to_rotation();
-
-                **turn_counter -= 1;
-                completed_turn_sender.write(CompletedTurn {
-                    old_rotation: moving.initial_rotation,
-                    old_location: grid_location.0.as_uvec3(),
-                    new_location: grid_location.0.as_uvec3(),
-                });
-            }
-        }
-        Direction::Around => {
-            let Some(camera_turn) = camera_turn else {
-                return;
-            };
-            rotate_camera_around_y(&mut camera_transform, camera_turn, progress * 2.0, false);
-            rotate_around_y(
-                &mut transform,
-                &moving.initial_rotation,
-                progress * 2.0,
-                false,
+            rotate_camera_around_y(
+                &mut camera_transform,
+                camera_turn,
+                progress * turns,
+                positive,
             );
             rotate_around_y(
                 &mut arrow_transform,
                 &orientation.0.to_rotation(),
-                progress * 2.0,
-                false,
+                progress * turns,
+                positive,
             );
-            if progress >= 1.0 {
-                commands.entity(player_entity).remove::<Moving>();
+
+            let completed = rotate_player(
+                &mut transform,
+                &mut orientation,
+                moving.direction,
+                moving.initial_rotation,
+                progress,
+            );
+            if completed {
                 commands.entity(camera_entity).remove::<CameraTurn>();
-                transform.rotation = Quat::from_axis_angle(Vec3::Y, PI) * moving.initial_rotation;
-                camera_transform.rotation =
-                    Quat::from_axis_angle(Vec3::Y, PI) * camera_turn.initial_rotation;
-
-                *orientation = Orientation(orientation.0.turn_left().turn_left());
+                camera_transform.rotation = match moving.direction {
+                    Direction::Left => {
+                        Quat::from_rotation_y(PI / 2.0) * camera_turn.initial_rotation
+                    }
+                    Direction::Right => {
+                        Quat::from_rotation_y(-PI / 2.0) * camera_turn.initial_rotation
+                    }
+                    Direction::Around => Quat::from_rotation_y(PI) * camera_turn.initial_rotation,
+                    _ => unreachable!(),
+                };
                 arrow_transform.rotation = orientation.0.to_rotation();
-
-                **turn_counter -= 1;
-                completed_turn_sender.write(CompletedTurn {
-                    old_rotation: moving.initial_rotation,
-                    old_location: grid_location.0.as_uvec3(),
-                    new_location: grid_location.0.as_uvec3(),
-                });
             }
+            completed
         }
-        Direction::SlideLeft => {
-            let target = slide_to(
-                &mut transform,
-                &grid_location,
-                orient_rot * vec3(-1.0, 0.0, 0.0),
-                progress,
-            );
-            if progress >= 1.0 {
-                let old_location = grid_location.0.as_uvec3();
-                grid_location.0 = target;
-                commands.entity(player_entity).remove::<Moving>();
+        Direction::Wait => progress >= 1.0,
+    };
 
-                **turn_counter -= 1;
-                completed_turn_sender.write(CompletedTurn {
-                    old_rotation: moving.initial_rotation,
-                    old_location,
-                    new_location: grid_location.0.as_uvec3(),
-                });
-            }
-        }
-        Direction::SlideRight => {
-            let target = slide_to(
-                &mut transform,
-                &grid_location,
-                orient_rot * vec3(1.0, 0.0, 0.0),
-                progress,
-            );
-            if progress >= 1.0 {
-                let old_location = grid_location.0.as_uvec3();
-                grid_location.0 = target;
-                commands.entity(player_entity).remove::<Moving>();
-
-                **turn_counter -= 1;
-                completed_turn_sender.write(CompletedTurn {
-                    old_rotation: moving.initial_rotation,
-                    old_location,
-                    new_location: grid_location.0.as_uvec3(),
-                });
-            }
-        }
-        Direction::Wait => {
-            if progress >= 1.0 {
-                commands.entity(player_entity).remove::<Moving>();
-
-                **turn_counter -= 1;
-                completed_turn_sender.write(CompletedTurn {
-                    old_rotation: moving.initial_rotation,
-                    old_location: grid_location.0.as_uvec3(),
-                    new_location: grid_location.0.as_uvec3(),
-                });
-            }
-        }
+    if completed {
+        commands.entity(player_entity).remove::<Moving>();
+        **turn_counter -= 1;
+        completed_turn_sender.write(CompletedTurn {
+            old_rotation: moving.initial_rotation,
+            old_location,
+            new_location: grid_location.0.as_uvec3(),
+        });
     }
 }
 /*fn detect_special_tile(
@@ -554,18 +383,107 @@ pub fn do_movement(
     }
 }*/
 
-fn slide_to(
+/// hard tp
+pub fn place_player(
     transform: &mut Transform,
-    grid_location: &GridLocation,
+    grid_location: &mut GridLocation,
+    location: Vec3,
+    rotation: Quat,
+) {
+    grid_location.0 = location;
+    transform.translation = grid_location.to_world_space() + vec3(0.0, PLAYER_SIZE.y / 2.0, 0.0);
+    transform.rotation = rotation;
+}
+
+/// roll (like wasd)
+pub fn roll_player(
+    transform: &mut Transform,
+    grid_location: &mut GridLocation,
+    orientation: &Orientation,
+    direction: Direction,
+    initial_rotation: Quat,
+    progress: f32,
+) -> bool {
+    let orient_rot = orientation.0.to_rotation();
+    let (axis, angle) = match direction {
+        Direction::North => (orient_rot * Vec3::X, -PI / 2.0),
+        Direction::South => (orient_rot * Vec3::X, PI / 2.0),
+        Direction::East => (orient_rot * Vec3::Z, -PI / 2.0),
+        Direction::West => (orient_rot * Vec3::Z, PI / 2.0),
+        _ => panic!("roll_player requires a cardinal direction"),
+    };
+    let rotation_offset = Quat::from_axis_angle(axis, progress * angle);
+    rotate_around(
+        transform,
+        &initial_rotation,
+        orient_rot * direction.to_pivot(),
+        &rotation_offset,
+        grid_location,
+    );
+
+    if progress < 1.0 {
+        return false;
+    }
+
+    grid_location.0 += orient_rot * direction.to_grid_location_offset();
+    transform.translation = grid_location.to_world_space() + vec3(0.0, PLAYER_SIZE.y / 2.0, 0.0);
+    transform.rotation = Quat::from_axis_angle(axis, angle) * initial_rotation;
+    true
+}
+
+/// translate (like zc)
+pub fn translate_player(
+    transform: &mut Transform,
+    grid_location: &mut GridLocation,
     offset: Vec3,
     progress: f32,
-) -> Vec3 {
+) -> bool {
     let target_grid_location = grid_location.0 + offset;
     let player_offset = vec3(0.0, PLAYER_SIZE.y / 2.0, 0.0);
     let start = grid_location.to_world_space() + player_offset;
     let target = GridLocation(target_grid_location).to_world_space() + player_offset;
     transform.translation = start.lerp(target, progress.min(1.0));
-    target_grid_location
+
+    if progress < 1.0 {
+        return false;
+    }
+
+    grid_location.0 = target_grid_location;
+    true
+}
+
+/// rotate (like qex)
+pub fn rotate_player(
+    transform: &mut Transform,
+    orientation: &mut Orientation,
+    direction: Direction,
+    initial_rotation: Quat,
+    progress: f32,
+) -> bool {
+    let (turns, positive) = match direction {
+        Direction::Left => (1.0, true),
+        Direction::Right => (1.0, false),
+        Direction::Around => (2.0, false),
+        _ => panic!("rotate_player requires Left, Right, or Around"),
+    };
+    rotate_around_y(transform, &initial_rotation, progress * turns, positive);
+
+    if progress < 1.0 {
+        return false;
+    }
+
+    let (rotation, new_orientation) = match direction {
+        Direction::Left => (Quat::from_rotation_y(PI / 2.0), orientation.0.turn_left()),
+        Direction::Right => (Quat::from_rotation_y(-PI / 2.0), orientation.0.turn_right()),
+        Direction::Around => (
+            Quat::from_rotation_y(PI),
+            orientation.0.turn_left().turn_left(),
+        ),
+        _ => unreachable!(),
+    };
+    transform.rotation = rotation * initial_rotation;
+    *orientation = Orientation(new_orientation);
+    true
 }
 
 fn rotate_around(

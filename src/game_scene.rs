@@ -115,17 +115,8 @@ fn generate_map(
                     Transform::from_xyz((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
                 });
             }
+
             if location == 5 {
-                // altar
-                let entity = commands.spawn_scene(bsn! {
-                    Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
-                    MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(168, 73, 255)))
-                    Transform::from_xyz((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
-                    GridLocation(vec3(i as f32, 0.0, j as f32))
-                    Altar
-                });
-            }
-            if location == 6 {
                 // conveyor belt
                 let this_orientation = world_map.stuff_orientation[i][j];
                 let direction = match this_orientation {
@@ -303,6 +294,18 @@ fn generate_map(
                 SignalAccess({ this_signal.layer as usize }),
             ));
         }
+    }
+    for (location, altar) in world_map.altars.iter() {
+        let location = location.clone();
+        // altar
+        let entity = commands.spawn_scene(bsn! {
+            Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
+            MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(168, 73, 255)))
+            Transform::from_xyz((location.x as f32) * GRID_SIZE.x, -5.0, (location.y as f32) * GRID_SIZE.y)
+            GridLocation(vec3(location.x as f32, 0.0, location.y as f32))
+            template_value(altar.clone())
+        });
+        obstructed_set.0.remove(&uvec3(location.x, 0, location.y));
     }
 }
 fn bridge_middle(grid_location: UVec2, rotation: Quat) -> impl Scene {

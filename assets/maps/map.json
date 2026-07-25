@@ -72,5 +72,11 @@
         "length": 2
       }
     }
+  ],
+  "altars": [
+    {
+      "position": [25, 10],
+      "action": "RollForward"
+    }
   ]
 }

@@ -1,9 +1,11 @@
 use bevy::prelude::Resource;
 use serde::{Deserialize, Serialize};
+use crate::ecs::PlayerAction;
 
 #[derive(Resource, Serialize, Deserialize, Clone, Debug)]
 pub struct MapJson {
     pub elements: Vec<Element>,
+    pub altars: Vec<JsonAltar>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -21,4 +23,9 @@ pub struct Signal {
 pub struct Timer {
     pub length: u32,
     pub timer_type: String,
+}
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct JsonAltar {
+    pub position: [u32; 2],
+    pub action: PlayerAction,
 }

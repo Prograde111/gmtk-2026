@@ -3,7 +3,7 @@ use bevy::math::{uvec2, UVec2};
 use bevy::prelude::Resource;
 use eyre::eyre;
 use image::RgbaImage;
-use crate::ecs::SignalLayers;
+use crate::ecs::{Altar, SignalLayers};
 use crate::map_json::{MapJson, Signal, Timer};
 
 pub const MAP_WIDTH: usize = 32;
@@ -17,6 +17,7 @@ pub struct WorldMap {
     pub stuff_orientation: MapLayer,
     pub signals: HashMap<UVec2, Signal>,
     pub timers: HashMap<UVec2, Timer>,
+    pub altars: HashMap<UVec2, Altar>,
 }
 
 pub fn load_world_map(map_json: &MapJson, signal_layers: &mut SignalLayers) -> Result<WorldMap, eyre::Error> {
@@ -25,8 +26,7 @@ pub fn load_world_map(map_json: &MapJson, signal_layers: &mut SignalLayers) -> R
     regular_color_mapping.insert([255, 0, 0, 255], 2); // pressure plate
     regular_color_mapping.insert([154, 114, 46, 255], 3); // bridge
     regular_color_mapping.insert([0, 38, 255, 255], 4); // gate
-    regular_color_mapping.insert([168, 73, 255, 255], 5); // altar
-    regular_color_mapping.insert([99, 99, 99, 255], 6); // conveyor belt
+    regular_color_mapping.insert([99, 99, 99, 255], 5); // conveyor belt
 
     let mut orientation_mapping = HashMap::new();
     orientation_mapping.insert([0, 255, 255, 255], 1); // north
@@ -48,12 +48,17 @@ pub fn load_world_map(map_json: &MapJson, signal_layers: &mut SignalLayers) -> R
             timers.insert(uvec2(element.position[0], element.position[1]), timer);
         }
     }
+    let mut altars = HashMap::new();
+    for altar in map_json.altars.clone() {
+        altars.insert(uvec2(altar.position[0], altar.position[1]), Altar(altar.action));
+    }
     Ok(WorldMap {
         ground: load_layer(include_bytes!("../assets/maps/ground.png"), "ground", regular_color_mapping.clone())?,
         stuff: load_layer(include_bytes!("../assets/maps/stuff.png"), "stuff", regular_color_mapping)?,
         stuff_orientation: load_layer(include_bytes!("../assets/maps/stuff_orientation.png"), "stuff_orientation", orientation_mapping)?,
         signals,
         timers,
+        altars,
     })
 }
 

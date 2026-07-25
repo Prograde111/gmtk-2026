@@ -229,6 +229,7 @@ pub fn do_movement(
 
                 **turn_counter -= 1;
                 completed_turn_sender.write(CompletedTurn {
+                    old_rotation: moving.initial_rotation,
                     old_location,
                     new_location: grid_location.0.as_uvec3(),
                 });
@@ -253,6 +254,7 @@ pub fn do_movement(
 
                 **turn_counter -= 1;
                 completed_turn_sender.write(CompletedTurn {
+                    old_rotation: moving.initial_rotation,
                     old_location,
                     new_location: grid_location.0.as_uvec3(),
                 });
@@ -277,6 +279,7 @@ pub fn do_movement(
 
                 **turn_counter -= 1;
                 completed_turn_sender.write(CompletedTurn {
+                    old_rotation: moving.initial_rotation,
                     old_location,
                     new_location: grid_location.0.as_uvec3(),
                 });
@@ -301,6 +304,7 @@ pub fn do_movement(
 
                 **turn_counter -= 1;
                 completed_turn_sender.write(CompletedTurn {
+                    old_rotation: moving.initial_rotation,
                     old_location,
                     new_location: grid_location.0.as_uvec3(),
                 });
@@ -334,6 +338,7 @@ pub fn do_movement(
 
                 **turn_counter -= 1;
                 completed_turn_sender.write(CompletedTurn {
+                    old_rotation: moving.initial_rotation,
                     old_location: grid_location.0.as_uvec3(),
                     new_location: grid_location.0.as_uvec3(),
                 });
@@ -367,6 +372,7 @@ pub fn do_movement(
 
                 **turn_counter -= 1;
                 completed_turn_sender.write(CompletedTurn {
+                    old_rotation: moving.initial_rotation,
                     old_location: grid_location.0.as_uvec3(),
                     new_location: grid_location.0.as_uvec3(),
                 });
@@ -400,6 +406,7 @@ pub fn do_movement(
 
                 **turn_counter -= 1;
                 completed_turn_sender.write(CompletedTurn {
+                    old_rotation: moving.initial_rotation,
                     old_location: grid_location.0.as_uvec3(),
                     new_location: grid_location.0.as_uvec3(),
                 });
@@ -419,6 +426,7 @@ pub fn do_movement(
 
                 **turn_counter -= 1;
                 completed_turn_sender.write(CompletedTurn {
+                    old_rotation: moving.initial_rotation,
                     old_location,
                     new_location: grid_location.0.as_uvec3(),
                 });
@@ -438,6 +446,7 @@ pub fn do_movement(
 
                 **turn_counter -= 1;
                 completed_turn_sender.write(CompletedTurn {
+                    old_rotation: moving.initial_rotation,
                     old_location,
                     new_location: grid_location.0.as_uvec3(),
                 });
@@ -449,6 +458,7 @@ pub fn do_movement(
 
                 **turn_counter -= 1;
                 completed_turn_sender.write(CompletedTurn {
+                    old_rotation: moving.initial_rotation,
                     old_location: grid_location.0.as_uvec3(),
                     new_location: grid_location.0.as_uvec3(),
                 });

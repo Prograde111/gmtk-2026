@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::f32::consts::PI;
 use std::time::Instant;
 use pastey::paste;
+use serde::{Deserialize, Serialize};
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SignalSystems {
@@ -24,7 +25,7 @@ pub struct TurnCountText;
 #[derive(Component, Clone, Default, Debug)]
 pub struct Player;
 
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Serialize, Deserialize, Default, Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum PlayerAction {
     RollForward,
     RollBackward,
@@ -35,6 +36,7 @@ pub enum PlayerAction {
     TurnAround,
     SlideLeft,
     SlideRight,
+    #[default]
     Wait,
 }
 impl PlayerAction {
@@ -87,6 +89,9 @@ impl AvailableActions {
             true
         }
     }
+    pub fn remove(&mut self, action: PlayerAction) {
+        self.0.remove(&action);
+    }
 }
 
 #[derive(Component, Clone, Default, Debug)]
@@ -122,7 +127,7 @@ pub enum Gate {
     Closed
 }
 #[derive(Component, Clone, Debug, Default)]
-pub struct Altar;
+pub struct Altar(pub PlayerAction);
 #[derive(Component, Clone, Default, Debug)]
 pub struct ConveyorBelt;
 
@@ -164,6 +169,7 @@ pub struct Moving {
 pub struct Orientation(pub Direction);
 #[derive(Message, Clone, Debug)]
 pub struct CompletedTurn {
+    pub old_rotation: Quat,
     pub old_location: UVec3,
     pub new_location: UVec3,
 }

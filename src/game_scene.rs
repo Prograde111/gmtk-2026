@@ -23,7 +23,7 @@ fn capture_initial_obstructions(mut commands: Commands, obstructed_set: Res<Obst
 
 fn scene() -> impl SceneList {
     bsn_list![
-        isometric_camera(), point_light(), ui(),
+        isometric_camera(), ui(),
         (
             player()
             Player
@@ -54,17 +54,14 @@ fn isometric_camera() -> impl Scene {
                     rotation,
                     translation: vec3(40.0, 32.66, 40.0)
                 }
-            )
+            ),
+            (
+                PointLight {
+                    shadow_maps_enabled: true,
+                }
+                Transform::from_xyz(0.0, 8.0, 0.0)
+            ),
         ]
-    }
-}
-
-fn point_light() -> impl Scene {
-    bsn! {
-        PointLight {
-            shadow_maps_enabled: true,
-        }
-        Transform::from_xyz(16.0 * GRID_SIZE.x, 8.0, 16.0 * GRID_SIZE.y)
     }
 }
 

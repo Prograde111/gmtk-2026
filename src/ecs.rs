@@ -115,6 +115,10 @@ impl GridLocation {
 #[derive(Resource, Clone, Default, Debug)]
 pub struct ObstructedSet(pub HashSet<UVec3>);
 
+/// wall locations
+#[derive(Resource, Clone, Default, Debug)]
+pub struct WallSet(pub HashSet<UVec3>);
+
 /// initial ObstructedSet to reset to
 #[derive(Resource, Clone, Default, Debug)]
 pub struct InitialObstructedSet(pub HashSet<UVec3>);
@@ -141,6 +145,7 @@ pub struct Moving {
     pub direction: Direction,
     pub start: Instant,
     pub initial_rotation: Quat,
+    pub roll_in_place: bool,
 }
 #[derive(Component, Clone, Default, Debug)]
 pub struct Orientation(pub Direction);

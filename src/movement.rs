@@ -1,6 +1,6 @@
 use crate::ecs::{
     Arrow, AvailableActions, CameraRig, CompletedTurn, DebugMode, Direction, GridLocation, Moving,
-    ObstructedSet, Orientation, Player, PlayerAction, TurnCounter,
+    ObstructedSet, Orientation, Player, PlayerAction, TurnCounter, WallSet,
 };
 use crate::sfx::{PlaySfx, Sfx, SfxSystems};
 use crate::story::GamePhase;
@@ -94,6 +94,7 @@ fn input(
     debug_mode: Res<DebugMode>,
     keys: Res<ButtonInput<KeyCode>>,
     obstructed_set: Res<ObstructedSet>,
+    wall_set: Res<WallSet>,
     mut commands: Commands,
 ) {
     if **debug_mode && shift_pressed(&keys) {
@@ -107,72 +108,68 @@ fn input(
         // roll north 1 space
         let future_grid_location =
             grid_location.0 + orientation.0.to_rotation() * Direction::North.to_vec_direction();
-        if obstructed_set
-            .0
-            .get(&future_grid_location.as_uvec3())
-            .is_some()
-        {
+        let Some(roll_in_place) =
+            roll_behavior(future_grid_location.as_uvec3(), &obstructed_set, &wall_set)
+        else {
             return;
-        }
+        };
 
         commands.entity(player_entity).insert(Moving {
             direction: Direction::North,
             start: Instant::now(),
             initial_rotation: transform.rotation,
+            roll_in_place,
         });
     }
     if action_just_pressed(&keys, available_actions, PlayerAction::RollBackward) {
         // roll south
         let future_grid_location =
             grid_location.0 + orientation.0.to_rotation() * Direction::South.to_vec_direction();
-        if obstructed_set
-            .0
-            .get(&future_grid_location.as_uvec3())
-            .is_some()
-        {
+        let Some(roll_in_place) =
+            roll_behavior(future_grid_location.as_uvec3(), &obstructed_set, &wall_set)
+        else {
             return;
-        }
+        };
 
         commands.entity(player_entity).insert(Moving {
             direction: Direction::South,
             start: Instant::now(),
             initial_rotation: transform.rotation,
+            roll_in_place,
         });
     }
     if action_just_pressed(&keys, available_actions, PlayerAction::RollLeft) {
         // roll west
         let future_grid_location =
             grid_location.0 + orientation.0.to_rotation() * Direction::West.to_vec_direction();
-        if obstructed_set
-            .0
-            .get(&future_grid_location.as_uvec3())
-            .is_some()
-        {
+        let Some(roll_in_place) =
+            roll_behavior(future_grid_location.as_uvec3(), &obstructed_set, &wall_set)
+        else {
             return;
-        }
+        };
 
         commands.entity(player_entity).insert(Moving {
             direction: Direction::West,
             start: Instant::now(),
             initial_rotation: transform.rotation,
+            roll_in_place,
         });
     }
     if action_just_pressed(&keys, available_actions, PlayerAction::RollRight) {
         // roll east
         let future_grid_location =
             grid_location.0 + orientation.0.to_rotation() * Direction::East.to_vec_direction();
-        if obstructed_set
-            .0
-            .get(&future_grid_location.as_uvec3())
-            .is_some()
-        {
+        let Some(roll_in_place) =
+            roll_behavior(future_grid_location.as_uvec3(), &obstructed_set, &wall_set)
+        else {
             return;
-        }
+        };
 
         commands.entity(player_entity).insert(Moving {
             direction: Direction::East,
             start: Instant::now(),
             initial_rotation: transform.rotation,
+            roll_in_place,
         });
     }
     if action_just_pressed(&keys, available_actions, PlayerAction::TurnLeft) {
@@ -181,6 +178,7 @@ fn input(
             direction: Direction::Left,
             start: Instant::now(),
             initial_rotation: transform.rotation,
+            roll_in_place: false,
         });
         // orbit camera
         commands.entity(camera_entity).insert(CameraTurn {
@@ -193,6 +191,7 @@ fn input(
             direction: Direction::Right,
             start: Instant::now(),
             initial_rotation: transform.rotation,
+            roll_in_place: false,
         });
         // orbit camera
         commands.entity(camera_entity).insert(CameraTurn {
@@ -205,6 +204,7 @@ fn input(
             direction: Direction::Around,
             start: Instant::now(),
             initial_rotation: transform.rotation,
+            roll_in_place: false,
         });
         // orbit camera
         commands.entity(camera_entity).insert(CameraTurn {
@@ -215,36 +215,46 @@ fn input(
         // slide left (translate, no roll)
         let future_grid_location =
             grid_location.0 + orientation.0.to_rotation() * Direction::West.to_vec_direction();
-        if obstructed_set
-            .0
-            .get(&future_grid_location.as_uvec3())
-            .is_some()
-        {
+        let Some(roll_in_place) = roll_behavior(
+            future_grid_location.as_uvec3(),
+            &obstructed_set,
+            &wall_set,
+        ) else {
             return;
-        }
+        };
 
         commands.entity(player_entity).insert(Moving {
-            direction: Direction::SlideLeft,
+            direction: if roll_in_place {
+                Direction::West
+            } else {
+                Direction::SlideLeft
+            },
             start: Instant::now(),
             initial_rotation: transform.rotation,
+            roll_in_place,
         });
     }
     if action_just_pressed(&keys, available_actions, PlayerAction::SlideRight) {
         // slide right
         let future_grid_location =
             grid_location.0 + orientation.0.to_rotation() * Direction::East.to_vec_direction();
-        if obstructed_set
-            .0
-            .get(&future_grid_location.as_uvec3())
-            .is_some()
-        {
+        let Some(roll_in_place) = roll_behavior(
+            future_grid_location.as_uvec3(),
+            &obstructed_set,
+            &wall_set,
+        ) else {
             return;
-        }
+        };
 
         commands.entity(player_entity).insert(Moving {
-            direction: Direction::SlideRight,
+            direction: if roll_in_place {
+                Direction::East
+            } else {
+                Direction::SlideRight
+            },
             start: Instant::now(),
             initial_rotation: transform.rotation,
+            roll_in_place,
         });
     }
     if action_just_pressed(&keys, available_actions, PlayerAction::Wait) {
@@ -253,9 +263,25 @@ fn input(
             direction: Direction::Wait,
             start: Instant::now(),
             initial_rotation: transform.rotation,
+            roll_in_place: false,
         });
     }
 }
+
+fn roll_behavior(
+    destination: UVec3,
+    obstructed_set: &ObstructedSet,
+    wall_set: &WallSet,
+) -> Option<bool> {
+    if wall_set.0.contains(&destination) {
+        Some(true)
+    } else if obstructed_set.0.contains(&destination) {
+        None
+    } else {
+        Some(false)
+    }
+}
+
 pub fn do_movement(
     player: Single<
         (
@@ -288,14 +314,26 @@ pub fn do_movement(
     let old_location = grid_location.0.as_uvec3();
 
     let completed = match moving.direction {
-        Direction::North | Direction::East | Direction::South | Direction::West => roll_player(
-            &mut transform,
-            &mut grid_location,
-            &orientation,
-            moving.direction,
-            moving.initial_rotation,
-            progress,
-        ),
+        Direction::North | Direction::East | Direction::South | Direction::West => {
+            if moving.roll_in_place {
+                roll_player_in_place(
+                    &mut transform,
+                    &orientation,
+                    moving.direction,
+                    moving.initial_rotation,
+                    progress,
+                )
+            } else {
+                roll_player(
+                    &mut transform,
+                    &mut grid_location,
+                    &orientation,
+                    moving.direction,
+                    moving.initial_rotation,
+                    progress,
+                )
+            }
+        }
         Direction::SlideLeft => translate_player(
             &mut transform,
             &mut grid_location,
@@ -421,13 +459,7 @@ pub fn roll_player(
     progress: f32,
 ) -> bool {
     let orient_rot = orientation.0.to_rotation();
-    let (axis, angle) = match direction {
-        Direction::North => (orient_rot * Vec3::X, -PI / 2.0),
-        Direction::South => (orient_rot * Vec3::X, PI / 2.0),
-        Direction::East => (orient_rot * Vec3::Z, -PI / 2.0),
-        Direction::West => (orient_rot * Vec3::Z, PI / 2.0),
-        _ => panic!("roll_player requires a cardinal direction"),
-    };
+    let (axis, angle) = roll_axis_angle(orientation, direction);
     let rotation_offset = Quat::from_axis_angle(axis, progress * angle);
     rotate_around(
         transform,
@@ -445,6 +477,30 @@ pub fn roll_player(
     transform.translation = grid_location.to_world_space() + vec3(0.0, PLAYER_SIZE.y / 2.0, 0.0);
     transform.rotation = Quat::from_axis_angle(axis, angle) * initial_rotation;
     true
+}
+
+/// roll in place
+pub fn roll_player_in_place(
+    transform: &mut Transform,
+    orientation: &Orientation,
+    direction: Direction,
+    initial_rotation: Quat,
+    progress: f32,
+) -> bool {
+    let (axis, angle) = roll_axis_angle(orientation, direction);
+    transform.rotation = Quat::from_axis_angle(axis, progress.min(1.0) * angle) * initial_rotation;
+    progress >= 1.0
+}
+
+fn roll_axis_angle(orientation: &Orientation, direction: Direction) -> (Vec3, f32) {
+    let orient_rot = orientation.0.to_rotation();
+    match direction {
+        Direction::North => (orient_rot * Vec3::X, -PI / 2.0),
+        Direction::South => (orient_rot * Vec3::X, PI / 2.0),
+        Direction::East => (orient_rot * Vec3::Z, -PI / 2.0),
+        Direction::West => (orient_rot * Vec3::Z, PI / 2.0),
+        _ => panic!("rolling requires a cardinal direction"),
+    }
 }
 
 /// translate (like zc)

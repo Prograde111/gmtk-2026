@@ -1,6 +1,6 @@
 use crate::ecs::{
     Arrow, ArrowBlock, AvailableActions, CameraRig, ConveyorBelt, Direction, Gate, GridLocation,
-    InitialObstructedSet, ObstructedSet, Orientation, Player, PressurePlate,
+    InitialObstructedSet, ObstructedSet, Orientation, Player, PressurePlate, WallSet,
 };
 use crate::map_loader::{GroundTile, StuffTile, TileLayer};
 use crate::signal_logic::TimerBank;
@@ -103,6 +103,7 @@ fn arrow() -> impl Scene {
 fn generate_map(
     mut commands: Commands,
     mut obstructed_set: ResMut<ObstructedSet>,
+    mut wall_set: ResMut<WallSet>,
     //mut special_tile_set: ResMut<SpecialTileSet>,
     world_map: Res<WorldMap>,
 ) {
@@ -222,6 +223,17 @@ fn generate_map(
     }
     for (i, row) in world_map.tiles.iter().enumerate() {
         for (j, tile) in row.iter().enumerate() {
+            if tile.stuff == StuffTile::Wall {
+                let location = uvec3(i as u32, 0, j as u32);
+                commands.spawn_scene(bsn! {
+                    Mesh3d(asset_value(Cuboid::new(1.0, 1.0, 1.0)))
+                    MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(64, 64, 64)))
+                    Transform::from_xyz(i as f32 * GRID_SIZE.x, 0.5, j as f32 * GRID_SIZE.y)
+                    GridLocation(vec3(i as f32, 0.0, j as f32))
+                });
+                obstructed_set.0.insert(location);
+                wall_set.0.insert(location);
+            }
             if tile.stuff == StuffTile::PressurePlate {
                 commands.spawn_scene(bsn! {
                     /*Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))

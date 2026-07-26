@@ -28,6 +28,7 @@ pub enum StuffTile {
     PressurePlate,
     Bridge,
     Gate,
+    Wall,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -106,6 +107,13 @@ pub fn load_world_map(map_json: &MapJson) -> Result<WorldMap, eyre::Error> {
             stuff: StuffTile::Gate,
         },
     );
+    tile_mapping.insert(
+        [64, 64, 64, 255],
+        MapTile {
+            ground: GroundTile::Ground,
+            stuff: StuffTile::Wall,
+        },
+    );
 
     let mut orientation_mapping = HashMap::new();
     orientation_mapping.insert([0, 255, 255, 255], 1); // north
@@ -173,8 +181,7 @@ pub fn load_world_map(map_json: &MapJson) -> Result<WorldMap, eyre::Error> {
 
     for (x, column) in tiles.iter().enumerate() {
         for (y, tile) in column.iter().enumerate() {
-            if tile.ground == GroundTile::Altar
-                && !altars.contains_key(&uvec2(x as u32, y as u32))
+            if tile.ground == GroundTile::Altar && !altars.contains_key(&uvec2(x as u32, y as u32))
             {
                 return Err(eyre!("altar at {x} {y} has no action in map.json"));
             }

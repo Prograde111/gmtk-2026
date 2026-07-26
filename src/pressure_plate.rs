@@ -61,20 +61,21 @@ fn update_switches(
 
     let snapshot = SignalSnapshot::capture(&switches, &timers);
     let player_position = uvec2(player.0.x as u32, player.0.z as u32);
-    let active_plate = pressure_plates
+    let has_physical_plate = pressure_plates
         .iter()
-        .map(|location| uvec2(location.0.x as u32, location.0.z as u32))
-        .find(|position| {
-            *position == player_position
-                && activation_at(&world_map, *position, &snapshot).unwrap_or(true)
-        });
+        .any(|location| uvec2(location.0.x as u32, location.0.z as u32) == player_position);
+    let has_invisible_activation = world_map.touched_switches.contains_key(&player_position)
+        || world_map.input_effects.contains_key(&player_position);
+    let active_trigger = (has_physical_plate || has_invisible_activation)
+        .then_some(player_position)
+        .filter(|position| activation_at(&world_map, *position, &snapshot).unwrap_or(true));
 
-    let touched_switches = active_plate
+    let touched_switches = active_trigger
         .and_then(|position| world_map.touched_switches.get(&position))
         .map(Vec::as_slice)
         .unwrap_or_default();
 
-    if let Some(position) = active_plate {
+    if let Some(position) = active_trigger {
         let position_3d = uvec3(position.x, 0, position.y);
         if old_locations.iter().any(|old| *old != position_3d) {
             if let Some(effects) = world_map.input_effects.get(&position) {

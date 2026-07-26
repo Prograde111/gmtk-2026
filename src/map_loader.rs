@@ -18,6 +18,7 @@ pub enum GroundTile {
     Ground,
     Conveyor,
     ArrowBlock,
+    Altar,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -27,7 +28,6 @@ pub enum StuffTile {
     PressurePlate,
     Bridge,
     Gate,
-    Altar,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -60,8 +60,8 @@ pub fn load_world_map(map_json: &MapJson) -> Result<WorldMap, eyre::Error> {
     tile_mapping.insert(
         [168, 73, 255, 255],
         MapTile {
-            ground: GroundTile::Ground,
-            stuff: StuffTile::Altar,
+            ground: GroundTile::Altar,
+            stuff: StuffTile::None,
         },
     );
     tile_mapping.insert(
@@ -173,7 +173,7 @@ pub fn load_world_map(map_json: &MapJson) -> Result<WorldMap, eyre::Error> {
 
     for (x, column) in tiles.iter().enumerate() {
         for (y, tile) in column.iter().enumerate() {
-            if tile.stuff == StuffTile::Altar
+            if tile.ground == GroundTile::Altar
                 && !altars.contains_key(&uvec2(x as u32, y as u32))
             {
                 return Err(eyre!("altar at {x} {y} has no action in map.json"));
@@ -184,7 +184,7 @@ pub fn load_world_map(map_json: &MapJson) -> Result<WorldMap, eyre::Error> {
         if tiles
             .get(position.x as usize)
             .and_then(|column| column.get(position.y as usize))
-            .is_none_or(|tile| tile.stuff != StuffTile::Altar)
+            .is_none_or(|tile| tile.ground != GroundTile::Altar)
         {
             return Err(eyre!(
                 "altar action at {} {} has no purple tile in map.png",

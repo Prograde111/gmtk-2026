@@ -120,6 +120,22 @@ fn generate_map(
                     Transform::from_xyz((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
                 });
             }
+            if tile.ground == GroundTile::Altar {
+                let location = uvec2(i as u32, j as u32);
+                let Some(altar) = world_map.altars.get(&location) else {
+                    error!("Altar at ({i}, {j}) has no action in map.json");
+                    continue;
+                };
+
+                commands.spawn_scene(bsn! {
+                    Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
+                    MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(168, 73, 255)))
+                    Transform::from_xyz((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
+                    GridLocation(vec3(i as f32, 0.0, j as f32))
+                    template_value(altar.clone())
+                });
+                obstructed_set.0.remove(&uvec3(location.x, 0, location.y));
+            }
 
             if tile.ground == GroundTile::Conveyor {
                 // conveyor belt
@@ -262,22 +278,6 @@ fn generate_map(
                         commands.spawn_scene(bridge_end(grid_location, Quat::from_rotation_y(PI)));
                     }
                 }
-            }
-            if tile.stuff == StuffTile::Altar {
-                let location = uvec2(i as u32, j as u32);
-                let Some(altar) = world_map.altars.get(&location) else {
-                    error!("Altar at ({i}, {j}) has no action in map.json");
-                    continue;
-                };
-
-                commands.spawn_scene(bsn! {
-                    Mesh3d(asset_value(Cuboid::new(1.0, 10.0, 1.0)))
-                    MeshMaterial3d::<StandardMaterial>(asset_value(Color::srgb_u8(168, 73, 255)))
-                    Transform::from_xyz((i as f32) * GRID_SIZE.x, -5.0, (j as f32) * GRID_SIZE.y)
-                    GridLocation(vec3(i as f32, 0.0, j as f32))
-                    template_value(altar.clone())
-                });
-                obstructed_set.0.remove(&uvec3(location.x, 0, location.y));
             }
             if tile.stuff == StuffTile::Gate {
                 // gate

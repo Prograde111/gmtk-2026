@@ -1,4 +1,56 @@
 {
+  "switches": {
+    "pressure_plate_W": {
+      "mode": "hold",
+      "initial": false
+    }
+  },
+  "timers": {
+    "three_active_turns": {
+      "mode": "active_during_countdown",
+      "turns": 3,
+      "initial": true
+    },
+    "every_two_turns": {
+      "mode": "periodic",
+      "period": 2,
+      "pulse_turns": 1,
+      "initial": true
+    }
+  },
+  "associations": [
+    {
+      "position": [22, 5],
+      "on_activate": {
+        "touch_switch": "pressure_plate_W",
+        "replace_timers": {
+          "position": [24, 6],
+          "with": ["three_active_turns", false, false]
+        }
+      }
+    },
+    {
+      "position": [24, 6],
+      "timers": [null, null, null],
+      "activated_by": {
+        "any": [{ "switch": "extension_plate" }, { "timer": 1 }]
+      }
+    },
+    {
+      "position": [23, 8],
+      "timers": ["every_two_turns", null, null],
+      "activated_by": {
+        "any": [{ "timer": 1 }]
+      }
+    },
+    {
+      "position": [25, 11],
+      "timers": ["every_two_turns", null, null],
+      "activated_by": {
+        "any": [{ "timer": 1 }]
+      }
+    }
+  ],
   "altars": [
     {
       "position": [27, 8],
